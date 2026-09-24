@@ -1,17 +1,35 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
     {
       self,
       nixpkgs,
+      rust-overlay,
     }:
     let
       systems = [ "x86_64-linux" ];
       forAllSystems =
-        f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
+        f: nixpkgs.lib.genAttrs systems (system:
+          let
+            overlays = [
+              (import rust-overlay)
+              (final: prev: {
+                custom_rust = final.callPackage ./nix/lib/rust.nix {};
+              })
+            ];
+            pkgs = import nixpkgs {
+              inherit system overlays;
+            };
+          in
+            f pkgs
+        );
     in
     {
       packages = forAllSystems (
@@ -20,6 +38,8 @@
           bazel = pkgs.callPackage ./nix/packages/bazel.nix {
             jdk = pkgs.jdk25_headless;
           };
+
+          bzlmod_parser_poc = pkgs.callPackage ./bzlmod_parser_poc/default.nix {};
 
           fetchrec = pkgs.callPackage ./nix/packages/fetchrec {
             jdk = pkgs.jdk25_headless;
@@ -85,7 +105,7 @@
           };
         in
         {
-          inherit helloWith bazel fetchrec;
+          inherit helloWith bazel fetchrec bzlmod_parser_poc;
           default = helloWith.dummy;
         }
       );
@@ -94,8 +114,12 @@
         default = pkgs.mkShell {
           packages = [
             self.packages.${pkgs.system}.bazel
-            self.packages.${pkgs.system}.fethrec
+            self.packages.${pkgs.system}.fetchrec
             pkgs.jdk25_headless
+            pkgs.git
+            pkgs.helix
+            pkgs.nixfmt
+            pkgs.custom_rust.bin
           ];
         };
       });
