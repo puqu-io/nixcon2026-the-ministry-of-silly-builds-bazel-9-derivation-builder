@@ -2,7 +2,7 @@ package fetchrec;
 
 import java.io.ByteArrayInputStream;
 import java.io.FileWriter;
-import java.io.IOException;
+import java.io.IOException; // bazel DownloadManager throws these
 import java.io.PrintWriter;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -34,6 +34,9 @@ public class Agent implements ClassFileTransformer {
 
   private static PrintWriter log;
 
+  // set by transform() if DownloadManager could not be changed
+  private static Throwable transformError;
+
   /**
    * entrypoint of javaagent
    * @param logFilePath whatever comes after "=" in the -javaagent option
@@ -43,11 +46,24 @@ public class Agent implements ClassFileTransformer {
     boolean flushAfterEveryLine = true; // write each line right away, in case bazel gets killed
     log = new PrintWriter(
         new FileWriter(logFilePath, append),
-       	flushAfterEveryLine
+        flushAfterEveryLine
     );
 
     // run every class through transform() below
     jvm.addTransformer(new Agent());
+
+    // ok ths is cursed, but hear me out. java ignores exceptions thrown
+    // from transform(), so load DownloadManager now (false = don't run any of its code yet) 
+    // and throw here instead. an exception from premain() stops bazel
+    // from starting.
+    Class.forName(
+        "com.google.devtools.build.lib.bazel.repository.downloader.DownloadManager",
+        false,
+        ClassLoader.getSystemClassLoader());
+    if (transformError != null) {
+      throw new IllegalStateException(
+          "fetchrec: could not change DownloadManager", transformError);
+    }
   }
 
   /**
@@ -91,12 +107,10 @@ public class Agent implements ClassFileTransformer {
           downloadManager.getDeclaredMethod("downloadAndReadOneUrlForBzlmod");
       downloadAndReadOneUrlForBzlmod.insertAfter("fetchrec.Agent.record(\"registry\", $1, $3, null, null);");
 
-
-      writeToLog("{\"note\":\"DownloadManager changed, recording downloads\"}");
       return downloadManager.toBytecode(); // hand the changed class back to Java
 
     } catch (Throwable error) {
-      writeToLog("{\"note\":" + quote("could not change DownloadManager: " + error) + "}");
+      transformError = error; // thrown by premain(), we cannot throw it here because it would be silently ignored
       return null;
     }
   }
@@ -152,7 +166,6 @@ public class Agent implements ClassFileTransformer {
       String message =
           "fetchrec: only SHA-256 checksums are supported, but " + urlsJson
               + " has a " + algorithm + " checksum";
-      writeToLog("{\"error\":" + quote(message) + "}"); // TODO: crash instead?
       throw new IOException(message);
     }
     return bazelChecksum.toString();

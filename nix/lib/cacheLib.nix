@@ -19,15 +19,8 @@ let
     lockFile:
     let
       lines = builtins.filter (line: line != "") (lib.splitString "\n" (builtins.readFile lockFile));
-      entries = map builtins.fromJSON lines;
-      errors = builtins.filter (e: e ? error) entries;
     in
-    if errors != [ ] then
-      throw ''
-        ${toString lockFile} contains errors from the recording run:
-        ${concatMapStringsSep "\n" (e: "  ${e.error}") errors}''
-    else
-      builtins.filter (e: e ? kind) entries;
+    map builtins.fromJSON lines;
 
   # downloads recorded without a checksum. bazel only looks in the repository cache
   # when a checksum is declared, so these can never be served offline.
