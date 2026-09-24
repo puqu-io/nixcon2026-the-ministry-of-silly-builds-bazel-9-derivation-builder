@@ -14,7 +14,7 @@ writeShellApplication {
     set -euo pipefail
     cat << 'EOF' > fetches.jsonl
     ${builtins.toJSON {
-      canonical_id = null;
+      id_hash = null;
       context = "repository @@gcc_toolchain++gcc_toolchains+gcc_toolchain_x86_64_16_2_0";
       kind = "archive";
       sha256 = "54af34c821e59b03ded8f82d3a1104426ec4baaf3b226233e1fd76ad5dcb78cf";
@@ -24,7 +24,7 @@ writeShellApplication {
     }}
     ${
       builtins.toJSON {
-        canonical_id = "https://cdn.azul.com/zulu/bin/zulu25.36.15-ca-jdk25.0.4-linux_x64.tar.gz https://mirror.bazel.build/cdn.azul.com/zulu/bin/zulu25.36.15-ca-jdk25.0.4-linux_x64.tar.gz";
+        id_hash = "19f55677f1b197271c809b82cc73ffc594898124cb6ee3327db9ae510fdd3b53";
         context = "repository @@rules_java++toolchains+remotejdk25_linux";
         kind = "archive";
         sha256 = "e476f5c98952cb365ca77a814dbe3c74341e71ae76d1a87d1c0a69c7d2b1b2d0";

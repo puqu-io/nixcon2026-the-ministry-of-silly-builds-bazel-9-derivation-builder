@@ -4,9 +4,13 @@ import java.io.ByteArrayInputStream;
 import java.io.FileWriter;
 import java.io.IOException; // bazel DownloadManager throws these
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import javassist.ClassClassPath;
@@ -26,7 +30,7 @@ import javassist.LoaderClassPath;
  *     where downloads finish
  *  3. every time bazel finishes a download, record() adds a line to the log:
  *       {"kind":"archive","urls":["https://..."],"sha256":"a1b2...",
- *        "canonical_id":null,"context":"repository @@rules_cc+"}
+ *        "id_hash":null,"context":"repository @@rules_cc+"}
  */
 public class Agent implements ClassFileTransformer {
 
@@ -129,7 +133,7 @@ public class Agent implements ClassFileTransformer {
    */
   public static void record(
       String kind, Object urls, Optional<?> checksum, String canonicalId, String context)
-      throws IOException {
+      throws IOException, NoSuchAlgorithmException {
     String urlsJson = urlsAsJson(urls);
     String sha256 = sha256Of(checksum, urlsJson); 
 
@@ -137,7 +141,7 @@ public class Agent implements ClassFileTransformer {
         "{\"kind\":" + quote(kind)
             + ",\"urls\":" + urlsJson
             + ",\"sha256\":" + quote(sha256)
-            + ",\"canonical_id\":" + quote(canonicalId)
+            + ",\"id_hash\":" + quote(idHash(canonicalId))
             + ",\"context\":" + quote(context)
             + "}");
   }
@@ -150,7 +154,9 @@ public class Agent implements ClassFileTransformer {
    */
   private static String sha256Of(Optional<?> checksum, String urlsJson) throws IOException {
     if (checksum.isEmpty()) {
-      return null; // TODO throw error instead?
+      return null; // TODO throw error instead? bazel allows for downloading stuff without
+		   // specifying checksum. should this fail early on here or later when the lockfile
+		   // is parsed in nix?
     }
     Object bazelChecksum = checksum.get();
 
@@ -169,6 +175,15 @@ public class Agent implements ClassFileTransformer {
       throw new IOException(message);
     }
     return bazelChecksum.toString();
+  }
+
+  /** compute the hash part of "id-<idHash>" marker file bazel puts next to a cached file. mimic the approach used in DownloadCache. */
+  private static String idHash(String canonicalId) throws NoSuchAlgorithmException {
+    if (canonicalId == null || canonicalId.isEmpty()) {
+      return null; // yep, it is possible that there's no canonial id
+    }
+    byte[] hash = MessageDigest.getInstance("SHA-256").digest(canonicalId.getBytes(StandardCharsets.UTF_8));
+    return HexFormat.of().formatHex(hash);
   }
 
   /** turn a list of URLs (or just one) into JSON, like ["a","b"]. */

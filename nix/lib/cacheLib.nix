@@ -11,10 +11,8 @@ let
 
   # Fetch log written by updater: one JSON object per line.
   #
-  #   {"kind":"archive","urls":["https://…"],"sha256":"<hex>|null",
-  #    "canonical_id":"…|null","context":"repository @@rules_cc+|null"}
-  #   {"kind":"registry","urls":["https://bcr.bazel.build/…"],"sha256":…,
-  #    "canonical_id":null,"context":null}
+  #  {"kind":"archive","urls":["https://..."],"sha256":"a1b2..." "id_hash":null,"context":"repository @@rules_cc+"}
+  #  {"kind":"registry","urls":["https://..."],"sha256":"b2c3..." "id_hash":"c3d4...","context":null}
   readLock =
     lockFile:
     let
@@ -30,14 +28,14 @@ let
 
   # the same bytes are usually recorded many times: once per Bazel command, under
   # mirror URLs, or by several repos. Merge them into one artifact per sha256, keeping
-  # every URL (fetchurl tries them in order) and every canonical id (each needs its
+  # every URL (fetchurl tries them in order) and every canonical id hash (each needs its
   # own marker in the cache).
 
   # [
   # {
   #   sha256 = "1849602c86cb60da8613d2de887f9566a6d354a6df6d7009f9d04a14402f9a84";
   #   urls = [ "https://bcr.bazel.build/modules/rules_foo/0.1.1/MODULE.bazel" ];
-  #   canonicalIds = [ ];
+  #   idHashes = [ ];
   #   kinds = [ "registry" "archive" ];
   # }
   # {
@@ -46,9 +44,9 @@ let
   #     "https://github.com/bazelbuild/rules_bar/releases/download/0.9.9/rules_bar-0.9.9.tar.gz"
   #     "https://mirror.example/rules_bar-0.9.9.tar.gz"
   #   ];
-  #   canonicalIds = [
-  #     "https://github.com/bazelbuild/rules_bar/releases/download/0.9.9/rules_bar-0.9.9.tar.gz"
-  #     "https://mirror.example/rules_bar-0.9.9.tar.gz https://github.com/bazelbuild/rules_bar/releases/download/0.9.9/rules_bar-0.9.9.tar.gz"
+  #   idHashes = [
+  #     "569116aedef0cb6f2ee8ec73c2b97cc9ba36d3cbfb4e9b7f6bed3bdcb416b699"
+  #     "93e8304d8070f91afe578de0b0b90e926c920df83bd3c30b07cc4f36c4a04482"
   #   ];
   #   kinds = [ "archive" ];
   # }
@@ -58,8 +56,8 @@ let
     lib.mapAttrsToList (sha256: group: {
       inherit sha256;
       urls = lib.unique (lib.concatMap (e: e.urls) group);
-      canonicalIds = lib.unique (
-        builtins.filter (id: id != null) (map (e: e.canonical_id) group)
+      idHashes = lib.unique (
+        builtins.filter (idHash: idHash != null) (map (e: e.id_hash) group)
       );
       kinds = lib.unique (map (e: e.kind) group);
     }) (lib.groupBy (e: e.sha256) (builtins.filter (e: e.sha256 != null) entries));
@@ -126,10 +124,10 @@ rec {
       # falls through to a disabled download.
       idMarkers =
         a:
-        map (id: {
-          name = "content_addressable/sha256/${a.sha256}/id-${builtins.hashString "sha256" id}";
+        map (idHash: {
+          name = "content_addressable/sha256/${a.sha256}/id-${idHash}";
           path = emptyFile;
-        }) a.canonicalIds;
+        }) a.idHashes;
     in
     if missing != [ ] && !allowMissingChecksums then
       throw ''
