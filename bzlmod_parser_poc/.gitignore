@@ -1,0 +1,8 @@
+.cache
+repo_cache
+starlark_modules_cache
+stderr
+stdout
+# Added by cargo
+
+/target
