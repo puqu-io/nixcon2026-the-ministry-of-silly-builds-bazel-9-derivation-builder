@@ -17,7 +17,7 @@
   startupFlags,
   cacheLib,
   vendorDir,
-  hasOpaque,
+  hasVendorRepos,
 }:
 
 let
@@ -43,7 +43,7 @@ writeShellApplication {
     export TMPDIR="$workdir"
 
     ${bazelEnv}
-    ${lib.optionalString hasOpaque (cacheLib.vendorDirSetupHook vendorDir)}
+    ${lib.optionalString hasVendorRepos (cacheLib.vendorDirSetupHook vendorDir)}
 
     bazel \
       ${startupFlags} \
