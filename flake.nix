@@ -78,8 +78,7 @@
             lockFile = ./fetches.jsonl;
 
             targets = [
-              "//examples/c:hello"
-              "//examples/java:hello_world"
+              "//examples/..."
             ];
 
             installPhase = ''
