@@ -141,7 +141,7 @@ public class Agent implements ClassFileTransformer {
         "{\"kind\":" + quote(kind)
             + ",\"urls\":" + urlsJson
             + ",\"sha256\":" + quote(sha256)
-            + ",\"id_hash\":" + quote(idHash(canonicalId))
+            + ",\"canonical_id_marker\":" + quote(canonicalIdMarker(canonicalId))
             + ",\"context\":" + quote(context)
             + "}");
   }
@@ -177,13 +177,13 @@ public class Agent implements ClassFileTransformer {
     return bazelChecksum.toString();
   }
 
-  /** compute the hash part of "id-<idHash>" marker file bazel puts next to a cached file. mimic the approach used in DownloadCache. */
-  private static String idHash(String canonicalId) throws NoSuchAlgorithmException {
+  /** compute canonical id marker "id-<hash>" file bazel puts next to a cached file. mimic the approach used in DownloadCache. */
+  private static String canonicalIdMarker(String canonicalId) throws NoSuchAlgorithmException {
     if (canonicalId == null || canonicalId.isEmpty()) {
       return null; // yep, it is possible that there's no canonial id
     }
     byte[] hash = MessageDigest.getInstance("SHA-256").digest(canonicalId.getBytes(StandardCharsets.UTF_8));
-    return HexFormat.of().formatHex(hash);
+    return "id-" + HexFormat.of().formatHex(hash);
   }
 
   /** turn a list of URLs (or just one) into JSON, like ["a","b"]. */

@@ -11,8 +11,8 @@ let
 
   # Fetch log written by updater: one JSON object per line.
   #
-  #  {"kind":"archive","urls":["https://..."],"sha256":"a1b2..." "id_hash":null,"context":"repository @@rules_cc+"}
-  #  {"kind":"registry","urls":["https://..."],"sha256":"b2c3..." "id_hash":"c3d4...","context":null}
+  #  {"kind":"archive","urls":["https://..."],"sha256":"a1b2..." "canonical_id_marker":null,"context":"repository @@rules_cc+"}
+  #  {"kind":"registry","urls":["https://..."],"sha256":"b2c3..." "canonical_id_marker":"id-c3d4...","context":null}
   readLock =
     lockFile:
     let
@@ -28,14 +28,14 @@ let
 
   # the same bytes are usually recorded many times: once per Bazel command, under
   # mirror URLs, or by several repos. Merge them into one artifact per sha256, keeping
-  # every URL (fetchurl tries them in order) and every canonical id hash (each needs its
-  # own marker in the cache).
+  # every URL (fetchurl tries them in order) and every canonical id marker (each needs
+  # its own file in the cache).
 
   # [
   # {
   #   sha256 = "1849602c86cb60da8613d2de887f9566a6d354a6df6d7009f9d04a14402f9a84";
   #   urls = [ "https://bcr.bazel.build/modules/rules_foo/0.1.1/MODULE.bazel" ];
-  #   idHashes = [ ];
+  #   idMarkers = [ ];
   #   kinds = [ "registry" "archive" ];
   # }
   # {
@@ -44,9 +44,9 @@ let
   #     "https://github.com/bazelbuild/rules_bar/releases/download/0.9.9/rules_bar-0.9.9.tar.gz"
   #     "https://mirror.example/rules_bar-0.9.9.tar.gz"
   #   ];
-  #   idHashes = [
-  #     "569116aedef0cb6f2ee8ec73c2b97cc9ba36d3cbfb4e9b7f6bed3bdcb416b699"
-  #     "93e8304d8070f91afe578de0b0b90e926c920df83bd3c30b07cc4f36c4a04482"
+  #   idMarkers = [
+  #     "id-569116aedef0cb6f2ee8ec73c2b97cc9ba36d3cbfb4e9b7f6bed3bdcb416b699"
+  #     "id-93e8304d8070f91afe578de0b0b90e926c920df83bd3c30b07cc4f36c4a04482"
   #   ];
   #   kinds = [ "archive" ];
   # }
@@ -56,8 +56,8 @@ let
     lib.mapAttrsToList (sha256: group: {
       inherit sha256;
       urls = lib.unique (lib.concatMap (e: e.urls) group);
-      idHashes = lib.unique (
-        builtins.filter (idHash: idHash != null) (map (e: e.id_hash) group)
+      idMarkers = lib.unique (
+        builtins.filter (idMarker: idMarker != null) (map (e: e.canonical_id_marker) group)
       );
       kinds = lib.unique (map (e: e.kind) group);
     }) (lib.groupBy (e: e.sha256) (builtins.filter (e: e.sha256 != null) entries));
@@ -94,15 +94,13 @@ rec {
   # --repository_cache:
   #
   #  <dir>/content_addressable/sha256/<hex>/file                 the bytes
-  #  <dir>/content_addressable/sha256/<hex>/id-<sha256(canonId)> a marker, when a rule set one
+  #  <dir>/content_addressable/sha256/<hex>/id-<sha256(canonId)> a marker file
   #
-  # archives and registry files share it: DownloadManager checks the repository cache
-  # for both (downloadInExecutor and downloadAndReadOneUrlForBzlmod), keyed by the
-  # declared checksum. Registry files get their checksums from MODULE.bazel.lock, so
-  # record with an up-to-date lockfile.
+  # DownloadManager checks the repository cache for both downloadInExecutor and downloadAndReadOneUrlForBzlmod
+  # keyed by the declared checksum. 
+  # Registry files get their checksums from MODULE.bazel.lock, so record with an up-to-date lockfile.
   #
-  # download whose rule declared no checksum is never looked up here at all. bazel
-  # goes straight to the downloader and, offline, fails.
+  # Download whose rule declared no checksum is never looked up here at all.
   mkRepoCache =
     {
       lockFile,
@@ -124,10 +122,10 @@ rec {
       # falls through to a disabled download.
       idMarkers =
         a:
-        map (idHash: {
-          name = "content_addressable/sha256/${a.sha256}/id-${idHash}";
+        map (idMarker: {
+          name = "content_addressable/sha256/${a.sha256}/${idMarker}";
           path = emptyFile;
-        }) a.idHashes;
+        }) a.idMarkers;
     in
     if missing != [ ] && !allowMissingChecksums then
       throw ''
