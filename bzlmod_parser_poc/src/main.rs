@@ -5,8 +5,10 @@ use std::io::{Read, Write};
 use std::ops::Deref;
 use std::os::unix::fs::FileExt;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use anyhow::Error;
+use clap::Parser;
 use flate2::read::GzDecoder;
 use lazy_static::lazy_static;
 use sha2::Digest;
@@ -23,14 +25,46 @@ use starlark::{
 };
 
 use bzlmod_parser_poc::bazel_module_lockfile::{
-  DownloadRequest, Integrity, Lockfile, SourceSpec,
+  DownloadRequest, FetchesJsonlEntry, Integrity, Lockfile, SourceSpec,
 };
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+  #[arg(short = 'm', long)]
+  bzl_module_file: PathBuf,
+  #[arg(short = 'l', long)]
+  bzl_module_lockfile: PathBuf,
+  #[arg(short, long, default_value = "./fetches.jsonl")]
+  output: PathBuf,
+  #[arg(short, long, default_value = "./starlark_defs/")]
+  starlark_defs: PathBuf,
+  #[arg(short, long, default_value = "./tmp/")]
+  tmp_dir: PathBuf,
+}
 
 #[derive(Debug)]
 struct ExtensionLoad {
   pub bind_to: String,
   pub from: String,
   pub objects: Vec<String>,
+}
+
+static STARLARK_MODULES_CACHE: OnceLock<PathBuf> = OnceLock::new();
+fn get_starlark_modules_cache(init_path: Option<PathBuf>) -> PathBuf {
+  match init_path {
+    None => STARLARK_MODULES_CACHE
+      .get()
+      .unwrap_or_else(|| {
+        panic!("Attempted to read starlark_modules_cache before init")
+      })
+      .to_path_buf(),
+    Some(p) => STARLARK_MODULES_CACHE.get_or_init(|| p).to_path_buf(),
+  }
+}
+
+pub fn get_executable_path() -> Option<PathBuf> {
+  std::fs::read_link("/proc/self/exe").ok()
 }
 
 // TODO: Use AST not regex
@@ -79,6 +113,8 @@ fn retrieve_extensions_loads<P: AsRef<Path>>(path: P) -> Vec<ExtensionLoad> {
 fn parse_bzl_module<P: AsRef<Path>>(
   path: P,
   extra_loads: &Vec<ExtensionLoad>,
+  starlark_defs_dir: P,
+  starlark_modules_cache: P,
 ) -> Option<AstModule> {
   let mut preamble = String::default();
 
@@ -124,9 +160,11 @@ fn parse_bzl_module<P: AsRef<Path>>(
     .map(|x| x.to_os_string() == "MODULE")
     .unwrap_or(false)
   {
-    preamble = preamble + &read_to_string("/home/agondek/projects/github.com/AleksanderGondek/bzlmod_parser_poc/bzlmod.star").ok()?;
+    preamble = preamble
+      + &read_to_string(starlark_defs_dir.as_ref().join("bzlmod.star")).ok()?;
   };
-  preamble = preamble + &read_to_string("/home/agondek/projects/github.com/AleksanderGondek/bzlmod_parser_poc/custom.star").ok()?;
+  preamble = preamble
+    + &read_to_string(starlark_defs_dir.as_ref().join("custom.star")).ok()?;
 
   let bzl_module_contents = read_to_string(&path).ok()?;
   let combined = preamble + "\n" + &bzl_module_contents;
@@ -149,7 +187,13 @@ fn parse_bzl_module<P: AsRef<Path>>(
     _non_exhaustive: (),
   };
 
-  match AstModule::parse(&path.as_ref().bazel_label(), combined, &dialect) {
+  match AstModule::parse(
+    &path
+      .as_ref()
+      .bazel_label(starlark_modules_cache.as_ref().to_path_buf().as_path()),
+    combined,
+    &dialect,
+  ) {
     Ok(o) => Some(o),
     Err(e) => {
       eprintln!("{e:#?}");
@@ -158,19 +202,25 @@ fn parse_bzl_module<P: AsRef<Path>>(
   }
 }
 
+fn calculate_cannonical_id_marker(urls: &Vec<String>) -> String {
+  // https://github.com/bazelbuild/bazel/blob/c9bf7292d82251ad9a61e1baf53050ccb1787a9c/tools/build_defs/repo/cache.bzl#L25
+  // Canonical id marker, without it Bazel complains
+  let urls = urls.join(" ");
+  let hexdigest = hex::encode(sha2::Sha256::digest(urls.as_bytes()));
+  let cannonical_id_marker_name = format!("id-{}", hexdigest);
+  cannonical_id_marker_name
+}
+
 fn create_canonical_id_marker<P: AsRef<Path>>(
   dest_dir: P,
   request: &DownloadRequest,
 ) -> PathBuf {
   // https://github.com/bazelbuild/bazel/blob/c9bf7292d82251ad9a61e1baf53050ccb1787a9c/tools/build_defs/repo/cache.bzl#L25
   // Canonical id marker, without it Bazel complains
-
   // In future, there will be urls, not single url
   let urls = vec![request.url.clone()];
-  let urls = urls.join(" ");
+  let cannonical_id_marker_name = calculate_cannonical_id_marker(&urls);
 
-  let hexdigest = hex::encode(sha2::Sha256::digest(urls.as_bytes()));
-  let cannonical_id_marker_name = format!("id-{}", hexdigest);
   let cannonical_id_marker_path =
     dest_dir.as_ref().join(cannonical_id_marker_name);
 
@@ -396,6 +446,8 @@ fn evaluate_bzl_module<P: AsRef<Path>>(
   depth: usize,
   // TODO: This is just nasty..
   loaded_modules: &mut HashMap<String, FrozenModule>,
+  starlark_defs_dir: P,
+  starlark_modules_cache: P,
 ) -> starlark::Result<FrozenModule> {
   let filepath = filepath.as_ref();
   let filepath_to_load_from = if !filepath.is_bazel_label() {
@@ -404,7 +456,7 @@ fn evaluate_bzl_module<P: AsRef<Path>>(
     filepath
       .to_string_lossy()
       .to_string()
-      .starlark_module_path()
+      .starlark_module_path(starlark_modules_cache.as_ref())
   };
 
   // eprintln!("===");
@@ -501,8 +553,12 @@ fn evaluate_bzl_module<P: AsRef<Path>>(
     &extension_loads,
   );
 
-  let Some(ast) = parse_bzl_module(&filepath_to_load_from, &extension_loads)
-  else {
+  let Some(ast) = parse_bzl_module(
+    &filepath_to_load_from,
+    &extension_loads,
+    &starlark_defs_dir.as_ref().to_path_buf(),
+    &starlark_modules_cache.as_ref().to_path_buf(),
+  ) else {
     // TODO: Improve
     eprintln!("filepath: {:#?}", filepath);
     eprintln!("filepath.is_bazel_label: {:#?}", filepath.is_bazel_label());
@@ -521,19 +577,19 @@ fn evaluate_bzl_module<P: AsRef<Path>>(
         filepath
           .to_string_lossy()
           .to_string()
-          .starlark_module_path()
-          .starlark_module_ruleset_path()
+          .starlark_module_path(starlark_modules_cache.as_ref())
+          .starlark_module_ruleset_path(starlark_modules_cache.as_ref())
           .join(stripped.replace(":", "/"))
-          .bazel_label()
+          .bazel_label(starlark_modules_cache.as_ref())
       } else if let Some(stripped) = load.module_id.strip_prefix(":") {
         filepath
           .to_string_lossy()
           .to_string()
-          .starlark_module_path()
+          .starlark_module_path(starlark_modules_cache.as_ref())
           .parent()
           .expect("no parent, so sad")
           .join(stripped)
-          .bazel_label()
+          .bazel_label(starlark_modules_cache.as_ref())
       } else {
         load.module_id.to_string()
       };
@@ -552,6 +608,11 @@ fn evaluate_bzl_module<P: AsRef<Path>>(
           initialized_module_bzls,
           depth + 1,
           &mut x,
+          starlark_defs_dir.as_ref().to_string_lossy().to_string(),
+          starlark_modules_cache
+            .as_ref()
+            .to_string_lossy()
+            .to_string(),
         )?,
       );
     }
@@ -611,23 +672,24 @@ fn evaluate_bzl_module<P: AsRef<Path>>(
 
 // Quick and dirty Label to Path and Path To String
 pub trait AsBazelLabel {
-  fn bazel_label(&self) -> String;
+  fn bazel_label(&self, starlark_modules_cache: &Path) -> String;
   fn is_bazel_label(&self) -> bool;
-  fn starlark_module_ruleset_path(&self) -> PathBuf;
+  fn starlark_module_ruleset_path(
+    &self,
+    starlark_modules_cache: &Path,
+  ) -> PathBuf;
 }
 pub trait AsStarlarkModulePath {
-  fn starlark_module_path(&self) -> PathBuf;
+  fn starlark_module_path(&self, starlark_modules_cache: &Path) -> PathBuf;
 }
 
 impl<T> AsBazelLabel for T
 where
   T: AsRef<Path>,
 {
-  fn bazel_label(&self) -> String {
+  fn bazel_label(&self, starlark_modules_cache: &Path) -> String {
     // TODO: this is copied over
-    let root = Path::new(
-      "/home/agondek/projects/github.com/AleksanderGondek/bzlmod_parser_poc/starlark_modules_cache",
-    );
+    let root = starlark_modules_cache;
     let path = self.as_ref();
     let Ok(path) = path.strip_prefix(root) else {
       // TODO: this will maybe brak something
@@ -652,11 +714,12 @@ where
     );
     lbl
   }
-  fn starlark_module_ruleset_path(&self) -> PathBuf {
+  fn starlark_module_ruleset_path(
+    &self,
+    starlark_modules_cache: &Path,
+  ) -> PathBuf {
     // TODO: this is copied over
-    let root = Path::new(
-      "/home/agondek/projects/github.com/AleksanderGondek/bzlmod_parser_poc/starlark_modules_cache",
-    );
+    let root = starlark_modules_cache;
     let path = self.as_ref();
     let Ok(path) = path.strip_prefix(root) else {
       // TODO: this will maybe brak something
@@ -679,11 +742,9 @@ impl<T> AsStarlarkModulePath for T
 where
   T: AsRef<str>,
 {
-  fn starlark_module_path(&self) -> PathBuf {
+  fn starlark_module_path(&self, starlark_modules_cache: &Path) -> PathBuf {
     // TODO: this is copied over
-    let root = Path::new(
-      "/home/agondek/projects/github.com/AleksanderGondek/bzlmod_parser_poc/starlark_modules_cache",
-    );
+    let root = starlark_modules_cache;
     root
       .join(
         self
@@ -751,10 +812,9 @@ fn starlark_rctx_file(builder: &mut GlobalsBuilder) {
     let content = content.unwrap_or(String::default());
     let executable = executable.unwrap_or(true);
 
-    // TODO: This is copied over and over again
-    let full_path = Path::new(
-      "/home/agondek/projects/github.com/AleksanderGondek/bzlmod_parser_poc/starlark_modules_cache",
-    ).join(repository_name).join(path);
+    let full_path = get_starlark_modules_cache(None)
+      .join(repository_name)
+      .join(path);
 
     let dirs = full_path
       .parent()
@@ -799,13 +859,14 @@ fn starlark_json_members(globals: &mut GlobalsBuilder) {
 }
 
 fn main() {
-  const SKIP_PREP: bool = true;
+  let args = Args::parse();
 
-  let lf = std::fs::File::open(
-    // "/home/agondek/projects/github.com/AleksanderGondek/rules_cc_hdrs_map/examples/MODULE.bazel.lock",
-    "/home/agondek/projects/github.com/AleksanderGondek/explore_bzl/MODULE.bazel.lock",
-  )
-  .expect("bbb");
+  const SKIP_PREP: bool = false;
+
+  let mut all_downloads: std::collections::HashSet<DownloadRequest> =
+    std::collections::HashSet::default();
+
+  let lf = std::fs::File::open(&args.bzl_module_lockfile).expect("bbb");
   let lb = std::io::BufReader::new(lf);
 
   let Ok(lockfile) =
@@ -815,15 +876,18 @@ fn main() {
     std::process::exit(1);
   };
 
-  let rc_dir = Path::new(
-    "/home/agondek/projects/github.com/AleksanderGondek/bzlmod_parser_poc/repo_cache/content_addressable/sha256",
-  );
+  let starlark_modules_root = args.tmp_dir.join("starlark_modules_cache");
+  // TODO: SIC
+  let _ = std::fs::create_dir_all(&starlark_modules_root);
+  let _ = get_starlark_modules_cache(Some(starlark_modules_root.to_path_buf()));
 
+  let rc_dir = args.tmp_dir.join("repo_cache/content_addressable/sha256");
   if !SKIP_PREP {
     let mut starlark_modules: HashMap<String, SourceSpec> = HashMap::default();
 
     for r in lockfile.registry_files_downloads() {
-      let downloaded_file = bazel_repository_cache_download(rc_dir, &r);
+      all_downloads.insert(r.clone());
+      let downloaded_file = bazel_repository_cache_download(&rc_dir, &r);
       if !matches!(
         r.kind,
         bzlmod_parser_poc::bazel_module_lockfile::RequestKind::Source
@@ -853,7 +917,8 @@ fn main() {
       };
 
       let _downloaded_archive_file =
-        bazel_repository_cache_download(rc_dir, &source_json_dr);
+        bazel_repository_cache_download(&rc_dir, &source_json_dr);
+      all_downloads.insert(source_json_dr.clone());
 
       for (patchfile_name, integrity) in
         &source_json.patches.clone().unwrap_or(HashMap::default())
@@ -872,7 +937,8 @@ fn main() {
           ),
         };
         // eprintln!("{patchfile_dr:#?}");
-        let _ = bazel_repository_cache_download(rc_dir, &patchfile_dr);
+        let _ = bazel_repository_cache_download(&rc_dir, &patchfile_dr);
+        all_downloads.insert(patchfile_dr.clone());
       }
 
       for (overlay_filename, overlay_integrity) in
@@ -891,7 +957,8 @@ fn main() {
           ),
         };
         // eprintln!("{patchfile_dr:#?}");
-        let _ = bazel_repository_cache_download(rc_dir, &overlay_dr);
+        let _ = bazel_repository_cache_download(&rc_dir, &overlay_dr);
+        all_downloads.insert(overlay_dr.clone());
       }
 
       // TODO: Improve, this name might be changed via top-level MODULE.bazel
@@ -911,17 +978,11 @@ fn main() {
     // ==================================
     // || Load modules for interpreter ||
     // ==================================
-    // eprintln!("{starlark_modules:#?}");
-    let starlark_modules_root = Path::new(
-      "/home/agondek/projects/github.com/AleksanderGondek/bzlmod_parser_poc/starlark_modules_cache",
-    );
 
     // TODO: we need to inject @bazel_tools repo etc
     let _ = copy_bazel_builtin_repos(
       starlark_modules_root.join("bazel_tools"),
-      Path::new(
-        "/home/agondek/projects/github.com/AleksanderGondek/bzlmod_parser_poc/my_starlark/bazel_tools",
-      ).to_path_buf(),
+      args.starlark_defs.join("bazel_tools"),
     );
 
     for (repo_name, specs) in &starlark_modules {
@@ -988,15 +1049,8 @@ fn main() {
   // || Beloew Stalark fun ||
   // ========================
 
-  // let modulefile_path = PathBuf::from(
-  //   "/home/agondek/projects/github.com/AleksanderGondek/explore_bzl/MODULE.bazel",
-  // );
-
   // Final
-  let modulefile_path = PathBuf::from(
-    // "/home/agondek/projects/github.com/AleksanderGondek/rules_cc_hdrs_map/examples/MODULE.bazel",
-    "/home/agondek/projects/github.com/AleksanderGondek/explore_bzl/MODULE.bazel",
-  );
+  let modulefile_path = args.bzl_module_file;
 
   let mut downloads_registry =
     std::collections::HashSet::<DownloadRequest>::new();
@@ -1009,6 +1063,8 @@ fn main() {
     &mut initialized_module_bzls,
     0,
     &mut loaded_modules,
+    &args.starlark_defs,
+    &starlark_modules_root,
   ) {
     Ok(_ret) => eprintln!("Evaluated {:#?}", &modulefile_path),
     Err(e) => eprintln!("Error. {e:#?}"),
@@ -1018,6 +1074,26 @@ fn main() {
   println!("{downloads_registry:#?}");
 
   for request in &downloads_registry {
-    bazel_repository_cache_download(rc_dir, request);
+    bazel_repository_cache_download(&rc_dir, request);
+    all_downloads.insert(request.clone());
   }
+
+  // Serialize the lockfile
+  let mut fetchesjsonl_lines = Vec::<String>::new();
+  for request in &all_downloads {
+    let urls = vec![request.url.clone()];
+    let entry = FetchesJsonlEntry {
+      canonical_id_marker: Some(calculate_cannonical_id_marker(&urls)),
+      urls: urls,
+      sha256: match &request.integrity {
+        Integrity::Sha256(sha256) => sha256.clone(),
+      },
+      context: "bzlmod_parser_poc".to_string(),
+      kind: "archive".to_string(), // SIC! needs improvements
+    };
+    fetchesjsonl_lines
+      .push(serde_json::to_string(&entry).expect("no serializetion"));
+  }
+
+  let _ = std::fs::write(args.output, fetchesjsonl_lines.join("\n"));
 }

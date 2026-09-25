@@ -1,6 +1,5 @@
 .cache
-repo_cache
-starlark_modules_cache
+tmp_out
 stderr
 stdout
 # Added by cargo
