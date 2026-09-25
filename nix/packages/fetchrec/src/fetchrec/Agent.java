@@ -46,11 +46,9 @@ public class Agent implements ClassFileTransformer {
    * @param logFilePath whatever comes after "=" in the -javaagent option
    */
   public static void premain(String logFilePath, Instrumentation jvm) throws Exception {
-    boolean append = true;
-    boolean flushAfterEveryLine = true; // write each line right away, in case bazel gets killed
     log = new PrintWriter(
-        new FileWriter(logFilePath, append),
-        flushAfterEveryLine
+        new FileWriter(logFilePath), // out
+        true                         // autoFlush. write the line rightaway, in case bazel dies
     );
 
     // run every class through transform() below
