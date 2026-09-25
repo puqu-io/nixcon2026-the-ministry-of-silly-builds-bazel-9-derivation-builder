@@ -3,6 +3,16 @@ use std::{collections::HashMap, path::PathBuf};
 use base64::Engine;
 use serde::Deserialize;
 
+// TODO: Beautiful name, much wow
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct FetchesJsonlEntry {
+  pub canonical_id_marker: Option<String>,
+  pub urls: Vec<String>,
+  pub sha256: String,
+  pub context: String,
+  pub kind: String,
+}
+
 // TODO: Represent all urls as URL from url crate :)
 
 #[derive(Debug, Deserialize, Clone)]
@@ -54,7 +64,7 @@ pub enum Integrity {
   Sha256(String),
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RequestKind {
   Archive,
   Module,
@@ -63,7 +73,7 @@ pub enum RequestKind {
   Source,
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct DownloadRequest {
   pub filename: String,
   pub integrity: Integrity,
