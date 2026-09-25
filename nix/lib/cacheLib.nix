@@ -1,6 +1,5 @@
 {
   lib,
-  runCommand,
   fetchurl,
   linkFarm,
   emptyFile,
@@ -169,26 +168,6 @@ rec {
     );
 
   registryDirSetupHook = registryDir: recordedDirSetupHook "registry" registryDir;
-
-  # vendor directory carrying opaque repos. `pin()` tells bazel to
-  # treat each vendored tree as though --override_repository had been passed,
-  # so it never re-runs the repository rule.
-  # repos is an attrset of { "@@canonical+name" = <store path>; }.
-  mkVendorDir =
-    {
-      repos ? { },
-      name ? "bazel-vendor",
-    }:
-    runCommand name { } ''
-      mkdir -p $out
-      ${concatMapStringsSep "\n" (
-        n: ''ln -s ${lib.escapeShellArg repos.${n}} "$out/${n}"''
-      ) (builtins.attrNames repos)}
-
-      cat > $out/VENDOR.bazel <<'EOF'
-      ${concatMapStringsSep "\n" (n: ''pin("${n}")'') (builtins.attrNames repos)}
-      EOF
-    '';
 
   # vendor directory must be writable: Bazel refreshes
   # <vendor_dir>/bazel-external on every command. Materialise a symlink

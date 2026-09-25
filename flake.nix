@@ -87,19 +87,12 @@
               runHook postInstall
             '';
 
-            # Repositories that fetch by shelling out never reach the
-            # downloader, so they cannot be locked as artifacts. Capture each
-            # one as its own derivation and pin it here; `pin()` in the
-            # generated VENDOR.bazel tells Bazel to treat the tree as an
-            # override and not re-run the rule.
-            #
-            # opaqueRepos = {
-            #   "@@com_example_thing+" = pkgs.fetchgit {
-            #     url = "https://github.com/example/thing";
-            #     rev = "abc123...";
-            #     hash = "sha256-...";
-            #   };
-            # };
+            # repositories that cannot be pinned by updater
+            # all of them are captured as one fixed-output derivation
+
+            # set the hash to "" to bootstrap: the build fails and prints it
+            vendorRepos = [];
+            vendorReposHash = "";
           };
 
           helloWith = {

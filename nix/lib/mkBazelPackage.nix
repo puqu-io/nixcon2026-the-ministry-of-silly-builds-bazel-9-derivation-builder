@@ -1,18 +1,10 @@
-# mkBazelPackage — build a Bazel 9 project with the unmodified upstream Bazel
-# binary and no network.
-#
-# The shape is two derivations and one script:
-#
-#   nix run .#update   (impure)  record → bazel-deps.lock.json, committed
-#   mkBazelPackage     (pure)    serve  → bazel builds offline
-#
-
 {
   lib,
   stdenv,
   cacheLib,
   bazel,
   jdk,
+  callPackage,
 }:
 
 updater:
@@ -33,8 +25,9 @@ updater:
   # the recording will not match the build.
   bazelFlags ? [ ],
 
-  # opaque repos: { "@@canonical+name" = <store path>; }
-  opaqueRepos ? { },
+  vendorRepos ? [ ],
+  vendorReposHash ? "",
+  vendorReposUseRepoCache ? true,
   ...
 }@args:
 
@@ -52,12 +45,6 @@ let
     name = "${pname}-registry";
   };
 
-  hasOpaque = opaqueRepos != { };
-  vendorDir = cacheLib.mkVendorDir {
-    repos = opaqueRepos;
-    name = "${pname}-vendor";
-  };
-
   startupFlags = lib.concatStringsSep " " [
     ''--output_user_root="$TMPDIR/bazel-root"''
   ];
@@ -70,12 +57,36 @@ let
   ]
   ++ bazelFlags;
 
+  hasVendorRepos = vendorRepos != [ ];
+
+  updateHasVendorRepos = hasVendorRepos && vendorReposHash != "";
+
+  vendorDir = callPackage ./vendorRepos.nix {
+    nativeBuildInputs = args.nativeBuildInputs or [ ];
+    useRepoCache = vendorReposUseRepoCache;
+    inherit
+      pname
+      src
+      bazel
+      jdk
+      bazelEnv
+      cacheLib
+      startupFlags
+      commonFlags
+      buildFlags
+      repoCache
+      vendorRepos
+      vendorReposHash
+      ;
+  };
+
   buildFlags = [
+    "--lockfile_mode=error"
     "--repository_disable_download"
   ];
 
   buildCacheFlags = cacheLib.cacheFlags {
-    vendorDir = hasOpaque;
+    vendorDir = hasVendorRepos;
     repoCache = true;
     registryTree = false;
   };
@@ -87,7 +98,7 @@ let
   ];
 
   updateCacheFlags = cacheLib.cacheFlags {
-    vendorDir = hasOpaque;
+    vendorDir = updateHasVendorRepos;
     repoCache = false;
     registryTree = false;
   };
@@ -100,7 +111,6 @@ let
     export JAVA_HOME="${jdk}"
     mkdir -p "$HOME"
   '';
-
 in
 stdenv.mkDerivation {
   inherit pname version src;
@@ -115,7 +125,7 @@ stdenv.mkDerivation {
     runHook preBuild
 
     ${bazelEnv}
-    ${lib.optionalString hasOpaque (cacheLib.vendorDirSetupHook vendorDir)}
+    ${lib.optionalString hasVendorRepos (cacheLib.vendorDirSetupHook vendorDir)}
     ${cacheLib.repoCacheSetupHook repoCache}
 
     bazel \
@@ -135,18 +145,23 @@ stdenv.mkDerivation {
   '';
 
   passthru = (args.passthru or { }) // {
+    # nix build .#default.vendor
+    vendor = vendorDir;
+
     # It is a script rather than a fixed-output derivation on purpose: the lock
     # is committed to the repo, the same way cargoLock or npmDepsHash are, and
     # nixpkgs cannot use IFD. Wrap this in an FOD whose output is the lock file
     # (and only the lock file) if you want the flake to build it on demand.
     update = updater {
+
+      # updater may only use the vendor directory once it has a real hash
+      hasVendorRepos = updateHasVendorRepos;
       inherit
         bazel
         jdk
         bazelEnv
         cacheLib
         commonFlags
-        hasOpaque
         pname
         targets
         startupFlags
