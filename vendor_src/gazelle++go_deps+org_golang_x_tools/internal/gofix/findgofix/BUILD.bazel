@@ -1,0 +1,25 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "findgofix",
+    srcs = ["findgofix.go"],
+    importpath = "golang.org/x/tools/internal/gofix/findgofix",
+    visibility = [
+        "//:__subpackages__",
+        "@org_golang_x_tools_go_vcs//:__subpackages__",
+    ],
+    deps = [
+        "//go/analysis",
+        "//go/ast/inspector",
+        "//internal/astutil",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":findgofix",
+    visibility = [
+        "//:__subpackages__",
+        "@org_golang_x_tools_go_vcs//:__subpackages__",
+    ],
+)

@@ -1,0 +1,27 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "qlog",
+    srcs = [
+        "handler.go",
+        "json_writer.go",
+        "qlog.go",
+    ],
+    importpath = "golang.org/x/net/quic/qlog",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":qlog",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "qlog_test",
+    srcs = [
+        "json_writer_test.go",
+        "qlog_test.go",
+    ],
+    embed = [":qlog"],
+)

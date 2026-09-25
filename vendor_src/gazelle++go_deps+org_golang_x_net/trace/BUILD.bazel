@@ -1,0 +1,28 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "trace",
+    srcs = [
+        "events.go",
+        "histogram.go",
+        "trace.go",
+    ],
+    importpath = "golang.org/x/net/trace",
+    visibility = ["//visibility:public"],
+    deps = ["//internal/timeseries"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":trace",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "trace_test",
+    srcs = [
+        "histogram_test.go",
+        "trace_test.go",
+    ],
+    embed = [":trace"],
+)

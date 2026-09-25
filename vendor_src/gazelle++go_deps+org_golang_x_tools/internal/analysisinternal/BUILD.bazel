@@ -1,0 +1,44 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "analysisinternal",
+    srcs = [
+        "analysis.go",
+        "extractdoc.go",
+    ],
+    importpath = "golang.org/x/tools/internal/analysisinternal",
+    visibility = [
+        "//:__subpackages__",
+        "@org_golang_x_tools_go_vcs//:__subpackages__",
+    ],
+    deps = [
+        "//go/analysis",
+        "//go/ast/inspector",
+        "//internal/typesinternal",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":analysisinternal",
+    visibility = [
+        "//:__subpackages__",
+        "@org_golang_x_tools_go_vcs//:__subpackages__",
+    ],
+)
+
+go_test(
+    name = "analysisinternal_test",
+    srcs = [
+        "addimport_test.go",
+        "analysis_test.go",
+        "extractdoc_test.go",
+    ],
+    embed = [":analysisinternal"],
+    deps = [
+        "//go/analysis",
+        "//go/ast/inspector",
+        "//internal/testenv",
+        "@com_github_google_go_cmp//cmp",
+    ],
+)

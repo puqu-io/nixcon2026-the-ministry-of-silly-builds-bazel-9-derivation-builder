@@ -1,0 +1,72 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "h2i_lib",
+    srcs = ["h2i.go"],
+    importpath = "golang.org/x/net/http2/h2i",
+    visibility = ["//visibility:private"],
+    deps = select({
+        "@io_bazel_rules_go//go/platform:aix": [
+            "//http2",
+            "//http2/hpack",
+            "@org_golang_x_term//:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:android": [
+            "//http2",
+            "//http2/hpack",
+            "@org_golang_x_term//:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:darwin": [
+            "//http2",
+            "//http2/hpack",
+            "@org_golang_x_term//:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:dragonfly": [
+            "//http2",
+            "//http2/hpack",
+            "@org_golang_x_term//:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:freebsd": [
+            "//http2",
+            "//http2/hpack",
+            "@org_golang_x_term//:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:ios": [
+            "//http2",
+            "//http2/hpack",
+            "@org_golang_x_term//:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:linux": [
+            "//http2",
+            "//http2/hpack",
+            "@org_golang_x_term//:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:netbsd": [
+            "//http2",
+            "//http2/hpack",
+            "@org_golang_x_term//:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:openbsd": [
+            "//http2",
+            "//http2/hpack",
+            "@org_golang_x_term//:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:solaris": [
+            "//http2",
+            "//http2/hpack",
+            "@org_golang_x_term//:go_default_library",
+        ],
+        "@io_bazel_rules_go//go/platform:windows": [
+            "//http2",
+            "//http2/hpack",
+            "@org_golang_x_term//:go_default_library",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+go_binary(
+    name = "h2i",
+    embed = [":h2i_lib"],
+    visibility = ["//visibility:public"],
+)

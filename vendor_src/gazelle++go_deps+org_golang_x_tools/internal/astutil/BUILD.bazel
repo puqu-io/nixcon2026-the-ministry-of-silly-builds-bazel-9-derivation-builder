@@ -1,0 +1,30 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "astutil",
+    srcs = [
+        "clone.go",
+        "comment.go",
+        "util.go",
+    ],
+    importpath = "golang.org/x/tools/internal/astutil",
+    visibility = [
+        "//:__subpackages__",
+        "@org_golang_x_tools_go_vcs//:__subpackages__",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":astutil",
+    visibility = [
+        "//:__subpackages__",
+        "@org_golang_x_tools_go_vcs//:__subpackages__",
+    ],
+)
+
+go_test(
+    name = "astutil_test",
+    srcs = ["util_test.go"],
+    deps = [":astutil"],
+)

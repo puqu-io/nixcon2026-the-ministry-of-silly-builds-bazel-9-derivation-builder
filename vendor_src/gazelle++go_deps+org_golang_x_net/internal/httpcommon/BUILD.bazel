@@ -1,0 +1,31 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "httpcommon",
+    srcs = [
+        "ascii.go",
+        "headermap.go",
+        "request.go",
+    ],
+    importpath = "golang.org/x/net/internal/httpcommon",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//http/httpguts",
+        "//http2/hpack",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":httpcommon",
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "httpcommon_test",
+    srcs = [
+        "httpcommon_test.go",
+        "request_test.go",
+    ],
+    embed = [":httpcommon"],
+)

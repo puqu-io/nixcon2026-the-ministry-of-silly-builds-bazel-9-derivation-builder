@@ -1,0 +1,24 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "interop_lib",
+    srcs = ["main.go"],
+    importpath = "golang.org/x/net/internal/quic/cmd/interop",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//quic",
+        "//quic/qlog",
+    ],
+)
+
+go_binary(
+    name = "interop",
+    embed = [":interop_lib"],
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "interop_test",
+    srcs = ["main_test.go"],
+    embed = [":interop_lib"],
+)

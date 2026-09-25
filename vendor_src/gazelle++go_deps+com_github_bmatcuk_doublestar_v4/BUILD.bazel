@@ -1,0 +1,53 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "doublestar",
+    srcs = [
+        "doublestar.go",
+        "glob.go",
+        "globoptions.go",
+        "globwalk.go",
+        "match.go",
+        "utils.go",
+        "validate.go",
+    ],
+    importpath = "github.com/bmatcuk/doublestar/v4",
+    importpath_aliases = ["github.com/bmatcuk/doublestar"],
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":doublestar",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "doublestar_test",
+    srcs = [
+        "doublestar_test.go",
+        "globwalk_test.go",
+        "utils_test.go",
+    ],
+    embed = [":doublestar"],
+)
+
+load("@package_metadata//rules:package_metadata.bzl", "package_metadata")
+load("@rules_license//rules:package_info.bzl", "package_info")
+
+package_metadata(
+    name = "package_metadata",
+    purl = "pkg:golang/github.com/bmatcuk/doublestar/v4@v4.9.1",
+    visibility = [
+        "//:__subpackages__",
+    ],
+)
+
+package_info(
+    name = "gazelle_generated_package_info",
+    package_name = "github.com/bmatcuk/doublestar/v4",
+    package_url = "https://github.com/bmatcuk/doublestar/v4",
+    package_version = "4.9.1",
+    purl = "pkg:golang/github.com/bmatcuk/doublestar/v4@v4.9.1",
+    visibility = ["//:__subpackages__"],
+)

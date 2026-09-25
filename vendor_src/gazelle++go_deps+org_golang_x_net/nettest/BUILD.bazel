@@ -1,0 +1,26 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "nettest",
+    srcs = [
+        "conntest.go",
+        "nettest.go",
+        "nettest_stub.go",
+        "nettest_unix.go",
+        "nettest_windows.go",
+    ],
+    importpath = "golang.org/x/net/nettest",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":nettest",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "nettest_test",
+    srcs = ["conntest_test.go"],
+    embed = [":nettest"],
+)

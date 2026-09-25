@@ -90,12 +90,50 @@
             # override and not re-run the rule.
             #
             # opaqueRepos = {
-            #   "@@com_example_thing+" = pkgs.fetchgit {
+            #   "com_example_thing+" = pkgs.fetchgit {
             #     url = "https://github.com/example/thing";
             #     rev = "abc123...";
             #     hash = "sha256-...";
             #   };
             # };
+            opaqueRepos = {
+              "gazelle++go_deps+org_golang_x_tools_go_vcs" = builtins.path {
+                path = ./vendor_src/gazelle++go_deps+org_golang_x_tools_go_vcs;
+                name = "gazelle++go_deps+org_golang_x_tools_go_vcr";
+              };
+              "gazelle++go_deps+org_golang_x_mod" = builtins.path {
+                path = ./vendor_src/gazelle++go_deps+org_golang_x_mod;
+                name = "gazelle++go_deps+org_golang_x_mod";
+              };
+              "gazelle++go_deps+com_github_pmezard_go_difflib" = builtins.path {
+                path = ./vendor_src/gazelle++go_deps+com_github_pmezard_go_difflib;
+                name = "gazelle++go_deps+com_github_pmezard_go_difflib";
+              };
+              "gazelle++go_deps+com_github_bazelbuild_buildtools" = builtins.path {
+                path = ./vendor_src/gazelle++go_deps+com_github_bazelbuild_buildtools;
+                name = "gazelle++go_deps+com_github_bazelbuild_buildtools";
+              };
+              "gazelle++go_deps+org_golang_x_sys" = builtins.path {
+                path = ./vendor_src/gazelle++go_deps+org_golang_x_sys;
+                name = "gazelle++go_deps+org_golang_x_sys";
+              };
+              "gazelle++go_deps+org_golang_x_sync" = builtins.path {
+                path = ./vendor_src/gazelle++go_deps+org_golang_x_sync;
+                name = "gazelle++go_deps+org_golang_x_sync";
+              };
+              "gazelle++go_deps+org_golang_x_net" = builtins.path {
+                path = ./vendor_src/gazelle++go_deps+org_golang_x_net;
+                name = "gazelle++go_deps+org_golang_x_net";
+              };
+              "gazelle++go_deps+org_golang_x_tools" = builtins.path {
+                path = ./vendor_src/gazelle++go_deps+org_golang_x_tools;
+                name = "gazelle++go_deps+org_golang_x_tools";
+              };
+              "gazelle++go_deps+com_github_bmatcuk_doublestar_v4" = builtins.path {
+                path = ./vendor_src/gazelle++go_deps+com_github_bmatcuk_doublestar_v4;
+                name = "gazelle++go_deps+com_github_bmatcuk_doublestar_v4";
+              };
+            };
           };
 
           helloWith = {

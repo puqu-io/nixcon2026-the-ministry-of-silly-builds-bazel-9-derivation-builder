@@ -1,0 +1,32 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "websocket",
+    srcs = [
+        "client.go",
+        "dial.go",
+        "hybi.go",
+        "server.go",
+        "websocket.go",
+    ],
+    importpath = "golang.org/x/net/websocket",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":websocket",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "websocket_test",
+    srcs = [
+        "dial_test.go",
+        "exampledial_test.go",
+        "examplehandler_test.go",
+        "hybi_test.go",
+        "websocket_test.go",
+    ],
+    embed = [":websocket"],
+)

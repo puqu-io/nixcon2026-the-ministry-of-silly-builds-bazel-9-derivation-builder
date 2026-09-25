@@ -1,0 +1,45 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "html",
+    srcs = [
+        "const.go",
+        "doc.go",
+        "doctype.go",
+        "entity.go",
+        "escape.go",
+        "foreign.go",
+        "iter.go",
+        "node.go",
+        "parse.go",
+        "render.go",
+        "token.go",
+    ],
+    importpath = "golang.org/x/net/html",
+    visibility = ["//visibility:public"],
+    deps = ["//html/atom"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":html",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "html_test",
+    srcs = [
+        "comment_test.go",
+        "entity_test.go",
+        "escape_test.go",
+        "example_test.go",
+        "iter_test.go",
+        "node_test.go",
+        "parse_test.go",
+        "render_test.go",
+        "token_test.go",
+    ],
+    data = glob(["testdata/**"]),
+    embed = [":html"],
+    deps = ["//html/atom"],
+)

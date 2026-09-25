@@ -1,0 +1,45 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "bpf",
+    srcs = [
+        "asm.go",
+        "constants.go",
+        "doc.go",
+        "instructions.go",
+        "setter.go",
+        "vm.go",
+        "vm_instructions.go",
+    ],
+    importpath = "golang.org/x/net/bpf",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":bpf",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "bpf_test",
+    srcs = [
+        "instructions_test.go",
+        "vm_aluop_test.go",
+        "vm_bpf_test.go",
+        "vm_extension_test.go",
+        "vm_jump_test.go",
+        "vm_load_test.go",
+        "vm_ret_test.go",
+        "vm_scratch_test.go",
+        "vm_test.go",
+    ],
+    data = glob(["testdata/**"]),
+    embed = [":bpf"],
+    deps = [
+        "//ipv4",
+        "//ipv6",
+        "//nettest",
+        "@org_golang_x_sys//cpu",
+    ],
+)

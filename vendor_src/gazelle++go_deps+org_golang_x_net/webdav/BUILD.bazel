@@ -1,0 +1,36 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "webdav",
+    srcs = [
+        "file.go",
+        "if.go",
+        "lock.go",
+        "prop.go",
+        "webdav.go",
+        "xml.go",
+    ],
+    importpath = "golang.org/x/net/webdav",
+    visibility = ["//visibility:public"],
+    deps = ["//webdav/internal/xml"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":webdav",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "webdav_test",
+    srcs = [
+        "file_test.go",
+        "if_test.go",
+        "lock_test.go",
+        "prop_test.go",
+        "webdav_test.go",
+        "xml_test.go",
+    ],
+    embed = [":webdav"],
+    deps = ["//webdav/internal/xml"],
+)

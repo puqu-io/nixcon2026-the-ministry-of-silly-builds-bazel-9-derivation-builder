@@ -1,0 +1,23 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "dnsmessage",
+    srcs = ["message.go"],
+    importpath = "golang.org/x/net/dns/dnsmessage",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":dnsmessage",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "dnsmessage_test",
+    srcs = [
+        "example_test.go",
+        "message_test.go",
+    ],
+    embed = [":dnsmessage"],
+)

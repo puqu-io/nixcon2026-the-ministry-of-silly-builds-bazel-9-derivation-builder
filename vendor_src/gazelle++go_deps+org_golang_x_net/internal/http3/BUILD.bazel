@@ -1,0 +1,62 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "http3",
+    srcs = [
+        "body.go",
+        "conn.go",
+        "doc.go",
+        "errors.go",
+        "http3.go",
+        "qpack.go",
+        "qpack_decode.go",
+        "qpack_encode.go",
+        "qpack_static.go",
+        "quic.go",
+        "roundtrip.go",
+        "server.go",
+        "settings.go",
+        "stream.go",
+        "transport.go",
+    ],
+    importpath = "golang.org/x/net/internal/http3",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//http2/hpack",
+        "//internal/httpcommon",
+        "//internal/quic/quicwire",
+        "//quic",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":http3",
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "http3_test",
+    srcs = [
+        "body_test.go",
+        "conn_test.go",
+        "files_test.go",
+        "http3_synctest_test.go",
+        "http3_test.go",
+        "qpack_decode_test.go",
+        "qpack_encode_test.go",
+        "qpack_test.go",
+        "quic_test.go",
+        "roundtrip_test.go",
+        "server_test.go",
+        "stream_test.go",
+        "transport_test.go",
+    ],
+    embed = [":http3"],
+    deps = [
+        "//internal/gate",
+        "//internal/quic/quicwire",
+        "//internal/testcert",
+        "//quic",
+    ],
+)

@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "iana",
+    srcs = ["const.go"],
+    importpath = "golang.org/x/net/internal/iana",
+    visibility = ["//:__subpackages__"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":iana",
+    visibility = ["//:__subpackages__"],
+)

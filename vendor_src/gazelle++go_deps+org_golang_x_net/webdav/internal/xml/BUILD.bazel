@@ -1,0 +1,31 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "xml",
+    srcs = [
+        "marshal.go",
+        "read.go",
+        "typeinfo.go",
+        "xml.go",
+    ],
+    importpath = "golang.org/x/net/webdav/internal/xml",
+    visibility = ["//webdav:__subpackages__"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":xml",
+    visibility = ["//webdav:__subpackages__"],
+)
+
+go_test(
+    name = "xml_test",
+    srcs = [
+        "atom_test.go",
+        "example_test.go",
+        "marshal_test.go",
+        "read_test.go",
+        "xml_test.go",
+    ],
+    embed = [":xml"],
+)

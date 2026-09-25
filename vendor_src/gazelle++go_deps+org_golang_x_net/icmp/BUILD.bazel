@@ -1,0 +1,59 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "icmp",
+    srcs = [
+        "dstunreach.go",
+        "echo.go",
+        "endpoint.go",
+        "extension.go",
+        "helper_posix.go",
+        "interface.go",
+        "ipv4.go",
+        "ipv6.go",
+        "listen_posix.go",
+        "listen_stub.go",
+        "message.go",
+        "messagebody.go",
+        "mpls.go",
+        "multipart.go",
+        "packettoobig.go",
+        "paramprob.go",
+        "sys_freebsd.go",
+        "timeexceeded.go",
+    ],
+    importpath = "golang.org/x/net/icmp",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/iana",
+        "//internal/socket",
+        "//ipv4",
+        "//ipv6",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":icmp",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "icmp_test",
+    srcs = [
+        "diag_test.go",
+        "example_test.go",
+        "extension_test.go",
+        "ipv4_test.go",
+        "message_test.go",
+        "multipart_test.go",
+    ],
+    embed = [":icmp"],
+    deps = [
+        "//internal/iana",
+        "//internal/socket",
+        "//ipv4",
+        "//ipv6",
+        "//nettest",
+    ],
+)

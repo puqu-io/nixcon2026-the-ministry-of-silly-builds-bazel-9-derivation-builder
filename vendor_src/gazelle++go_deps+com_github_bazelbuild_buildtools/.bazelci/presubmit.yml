@@ -1,0 +1,26 @@
+---
+buildifier:
+  version: latest
+  warnings: "default"
+platforms:
+  ubuntu2004:
+    test_targets:
+    - "//..."
+  ubuntu2204:
+    test_targets:
+    - "//..."
+  macos:
+    test_targets:
+    - "//..."
+  macos_arm64:
+    test_targets:
+    - "//..."
+  windows:
+    test_flags:
+    - "--enable_runfiles"
+    test_targets:
+    - "--"
+    - "//:tests"
+    - "-//warn/docs:docs_test"
+    - "-//build:build_test"
+    - "-//buildifier:buildifier_integration_test"

@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "convertast",
+    srcs = ["convert_ast.go"],
+    importpath = "github.com/bazelbuild/buildtools/convertast",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//build",
+        "@net_starlark_go//syntax",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":convertast",
+    visibility = ["//visibility:public"],
+)

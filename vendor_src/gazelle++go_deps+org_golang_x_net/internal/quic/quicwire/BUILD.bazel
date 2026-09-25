@@ -1,0 +1,20 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "quicwire",
+    srcs = ["wire.go"],
+    importpath = "golang.org/x/net/internal/quic/quicwire",
+    visibility = ["//:__subpackages__"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":quicwire",
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "quicwire_test",
+    srcs = ["wire_test.go"],
+    embed = [":quicwire"],
+)

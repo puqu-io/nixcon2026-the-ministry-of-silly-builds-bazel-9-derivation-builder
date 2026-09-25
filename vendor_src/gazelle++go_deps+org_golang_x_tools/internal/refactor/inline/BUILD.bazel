@@ -1,0 +1,61 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "inline",
+    srcs = [
+        "callee.go",
+        "calleefx.go",
+        "doc.go",
+        "escape.go",
+        "falcon.go",
+        "free.go",
+        "inline.go",
+        "util.go",
+    ],
+    importpath = "golang.org/x/tools/internal/refactor/inline",
+    visibility = [
+        "//:__subpackages__",
+        "@org_golang_x_tools_go_vcs//:__subpackages__",
+    ],
+    deps = [
+        "//go/ast/astutil",
+        "//go/types/typeutil",
+        "//internal/analysisinternal",
+        "//internal/astutil",
+        "//internal/typeparams",
+        "//internal/typesinternal",
+    ],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":inline",
+    visibility = [
+        "//:__subpackages__",
+        "@org_golang_x_tools_go_vcs//:__subpackages__",
+    ],
+)
+
+go_test(
+    name = "inline_test",
+    srcs = [
+        "calleefx_test.go",
+        "everything_test.go",
+        "export_test.go",
+        "falcon_test.go",
+        "free_test.go",
+        "inline_test.go",
+    ],
+    data = glob(["testdata/**"]),
+    embed = [":inline"],
+    deps = [
+        "//go/ast/astutil",
+        "//go/packages",
+        "//go/types/typeutil",
+        "//internal/diff",
+        "//internal/expect",
+        "//internal/testenv",
+        "//internal/testfiles",
+        "//txtar",
+    ],
+)

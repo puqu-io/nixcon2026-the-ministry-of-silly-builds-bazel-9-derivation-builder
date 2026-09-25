@@ -1,0 +1,20 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "netutil",
+    srcs = ["listen.go"],
+    importpath = "golang.org/x/net/netutil",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":netutil",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "netutil_test",
+    srcs = ["listen_test.go"],
+    embed = [":netutil"],
+)

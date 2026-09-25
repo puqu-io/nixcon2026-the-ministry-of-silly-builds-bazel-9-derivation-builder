@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "testcert",
+    srcs = ["testcert.go"],
+    importpath = "golang.org/x/net/internal/testcert",
+    visibility = ["//:__subpackages__"],
+)
+
+alias(
+    name = "go_default_library",
+    actual = ":testcert",
+    visibility = ["//:__subpackages__"],
+)

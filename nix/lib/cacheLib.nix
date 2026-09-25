@@ -186,7 +186,7 @@ rec {
       ) (builtins.attrNames repos)}
 
       cat > $out/VENDOR.bazel <<'EOF'
-      ${concatMapStringsSep "\n" (n: ''pin("${n}")'') (builtins.attrNames repos)}
+      ${concatMapStringsSep "\n" (n: ''pin("@@${n}")'') (builtins.attrNames repos)}
       EOF
     '';
 
