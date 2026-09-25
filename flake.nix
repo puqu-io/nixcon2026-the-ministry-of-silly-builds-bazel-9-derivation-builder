@@ -53,6 +53,9 @@
                 inherit cacheLib bazel;
                 jdk = pkgs.jdk25_headless;
               };
+              bzlmod_parser_poc_updater = pkgs.callPackage ./nix/lib/bzlmodParserPocUpdater.nix {
+                inherit bzlmod_parser_poc;
+              };
               fetchrec_updater = pkgs.callPackage ./nix/lib/fetchrecUpdater.nix {
                 inherit fetchrec;
               };
@@ -61,6 +64,7 @@
             {
               fetchrec = mkBazelPackage fetchrec_updater;
               dummy = mkBazelPackage dummy_updater;
+              bzlmod_parser_poc = mkBazelPackage bzlmod_parser_poc_updater;
             };
 
           bazelPackageAttrs = {
@@ -100,6 +104,7 @@
           };
 
           helloWith = {
+            bzlmod_parser_poc = mkBazelPackageWith.bzlmod_parser_poc bazelPackageAttrs;
             dummy = mkBazelPackageWith.dummy bazelPackageAttrs;
             fetchrec = mkBazelPackageWith.fetchrec bazelPackageAttrs;
           };

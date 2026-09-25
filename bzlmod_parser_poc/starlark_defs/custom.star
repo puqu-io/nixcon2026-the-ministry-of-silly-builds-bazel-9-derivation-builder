@@ -359,7 +359,10 @@ def invoke_repository_rule_impl(impl, attrs, *args, **kwargs):
             name = "Linux",
             arch = "amd64",
         ),
-        path = lambda p: "/home/agondek/projects/github.com/AleksanderGondek/bzlmod_parser_poc/starlark_modules_cache/" + p,
+        path = lambda p: struct(
+            _inner = "/home/agondek/projects/github.com/AleksanderGondek/bzlmod_parser_poc/starlark_modules_cache/" + p,
+            exists = True,            
+        ),
         read = lambda *args: "#<REPOSITORY_CTX_READ_OUTPUT_CONTENTS>",
         template = gen_repository_ctx_template(kwargs.get("name")),
         # TODO: implement which

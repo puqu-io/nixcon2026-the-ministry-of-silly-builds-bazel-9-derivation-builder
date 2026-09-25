@@ -133,7 +133,7 @@ impl<'de> serde::Deserialize<'de> for Integrity {
 
 impl Lockfile {
   pub fn registry_files_downloads(&self) -> Vec<DownloadRequest> {
-    self
+    let mut r: Vec<DownloadRequest> = self
       .registry_file_hashes
       .iter()
       .map(|(url, sha256)| {
@@ -153,7 +153,19 @@ impl Lockfile {
           url: url.clone(),
         }
       })
-      .collect()
+      .collect();
+    // sic! todo!
+    r.push(DownloadRequest {
+      filename: "v1.10.0.tar.gz".to_string(),
+      integrity: Integrity::Sha256(
+        "a1a9f7875aa4b6a9480ca384d5865f1ccf1b0b1faead6b47aa47d79709a5c5fd"
+          .to_string(),
+      ),
+      kind: RequestKind::Archive,
+      url: "https://github.com/bats-core/bats-core/archive/v1.10.0.tar.gz"
+        .to_string(),
+    });
+    return r;
     //   let actually_used = self.registry_file_hashes.iter().filter(|(url, _)| {
     //     // TODO: You are doing the same thing twice bro
     //     let filename = std::path::Path::new(url)

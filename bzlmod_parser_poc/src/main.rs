@@ -41,6 +41,8 @@ struct Args {
   starlark_defs: PathBuf,
   #[arg(short, long, default_value = "./tmp/")]
   tmp_dir: PathBuf,
+  #[arg(short = 'i', long, default_value = "false")]
+  ignore_download: bool,
 }
 
 #[derive(Debug)]
@@ -485,8 +487,8 @@ fn evaluate_bzl_module<P: AsRef<Path>>(
   //   let corresponding_module_bazel = filepath_to_load_from
   //     .to_string_lossy()
   //     .to_string()
-  //     .starlark_module_path()
-  //     .starlark_module_ruleset_path()
+  //     .starlark_module_path(starlark_modules_cache.as_ref())
+  //     .starlark_module_ruleset_path(starlark_modules_cache.as_ref())
   //     .join("MODULE.bazel");
   //   if corresponding_module_bazel.exists() {
   //     if !initialized_module_bzls.contains(&corresponding_module_bazel) {
@@ -506,6 +508,8 @@ fn evaluate_bzl_module<P: AsRef<Path>>(
   //         initialized_module_bzls,
   //         depth + 1,
   //         loaded_modules,
+  //         starlark_defs_dir.as_ref().to_path_buf(),
+  //         starlark_modules_cache.as_ref().to_path_buf(),
   //       ) {
   //         Err(err) => {
   //           eprintln!("Failed to evaluate: {:#?}", &corresponding_module_bazel);
