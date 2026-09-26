@@ -134,6 +134,7 @@ stdenv.mkDerivation (
           lockPath
           ;
         flags = [
+          "--nobuild"
           "--repository_cache="
           "--lockfile_mode=update"
           "--experimental_convenience_symlinks=ignore"
