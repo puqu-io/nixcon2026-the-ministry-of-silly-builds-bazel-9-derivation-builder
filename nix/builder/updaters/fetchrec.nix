@@ -1,42 +1,24 @@
-{
-  writeShellApplication,
-  fetchrec,
-}:
+{ fetchrec }:
 
 {
   ctx,
   caches,
-  pname,
   targets,
-  lockPath,
   flags,
   mounts,
 }:
 
 let
   # watch a fetch happen and write it down
-  agentFlags = ''--host_jvm_args=-javaagent:${fetchrec}/fetchrec.jar="$repo/${lockPath}"'';
+  agentFlags = ''--host_jvm_args=-javaagent:${fetchrec}/fetchrec.jar="$lockOut"'';
 in
-writeShellApplication {
-  name = "update-${pname}-lock";
-  runtimeInputs = [
+{
+  nativeBuildInputs = [
     ctx.bazel
     ctx.jdk
-    fetchrec
   ];
-  text = ''
-    repo="$(pwd)"
-    workdir="$(mktemp -d)"
 
-    cleanup() {
-      ${ctx.shutdown agentFlags} || true
-      chmod -R u+w "$workdir"
-      rm -rf "$workdir"
-    }
-    trap cleanup EXIT
-
-    export TMPDIR="$workdir"
-
+  script = ''
     ${ctx.env}
     ${caches.setup mounts}
 
@@ -45,5 +27,8 @@ writeShellApplication {
       inherit flags mounts targets;
       extraStartup = agentFlags;
     }}
+
+    # stop the server so the agent flushes the log before it is read
+    ${ctx.shutdown agentFlags}
   '';
 }

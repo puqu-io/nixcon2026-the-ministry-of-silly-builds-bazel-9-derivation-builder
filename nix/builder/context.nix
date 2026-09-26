@@ -14,7 +14,10 @@ rec {
   commonFlags = [
     "--java_runtime_version=${javaRuntime}"
     "--tool_java_runtime_version=${javaRuntime}"
+    "--lockfile_mode=error"
     "--remote_timeout=3600"
+    "--curses=no"
+    "--spawn_strategy=local"
     "--distdir="
   ]
   ++ bazelFlags;

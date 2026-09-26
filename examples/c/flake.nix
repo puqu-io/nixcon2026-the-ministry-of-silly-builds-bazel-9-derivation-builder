@@ -24,7 +24,8 @@
         pname = "example";
         version = "1.0.0";
         src = ./.;
-        lockFile = ./fetches.jsonl;
+        #lockFile = ./fetches.jsonl;
+        lockHash = "sha256-c/6tgxcUviCQPZdOMUR+6q0SV2V29PBMaouI3vzz4LU=";
         updater = pkgs.bazelUpdaters.bzlmodParser;
         targets = [ "//:hello" ];
         installPhase = ''
@@ -33,11 +34,9 @@
       };
     in
     {
-      packages.${system}.default = example;
-
-      apps.${system}.update = {
-        type = "app";
-        program = pkgs.lib.getExe example.update;
+      packages.${system} = {
+        default = example;
+        inherit (example) lock;
       };
 
       devShells.${system}.default = pkgs.mkShell {
