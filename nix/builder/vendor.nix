@@ -46,7 +46,7 @@ stdenv.mkDerivation {
       inherit mounts;
     }}
 
-    ${ctx.shutdown ""}
+    ${ctx.shutdown []}
 
     runHook postBuild
   '';

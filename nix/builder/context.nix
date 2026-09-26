@@ -9,7 +9,7 @@
 rec {
   inherit bazel jdk;
 
-  startupFlags = ''--output_user_root="$TMPDIR/bazel-root"'';
+  _startupFlags = [ ];
 
   commonFlags = [
     "--java_runtime_version=${javaRuntime}"
@@ -34,20 +34,19 @@ rec {
   #   targets      - targets to build
   #   flags        - build flags
   #   mounts       - cache mounts from caches.nix
-  #   extraStartup - raw startup flags
+  #   startupFlags - startup flags
   run =
     {
       cmd,
       targets ? [ ],
       flags ? [ ],
       mounts ? [ ],
-      extraStartup ? "",
+      startupFlags ? [ ],
     }:
     lib.concatStringsSep " " (
       builtins.filter (s: s != "") [
         "bazel"
-        startupFlags
-        extraStartup
+        (lib.concatStringsSep " " (_startupFlags ++ startupFlags))
         cmd
         (lib.escapeShellArgs targets)
         (lib.escapeShellArgs (flags ++ commonFlags))
@@ -56,5 +55,7 @@ rec {
     );
 
   # startup flags must match the ones the server was started with
-  shutdown = extraStartup: "bazel ${startupFlags} ${extraStartup} shutdown";
+  shutdown =
+    startupFlags:
+    "bazel ${(lib.concatStringsSep " " (_startupFlags ++ startupFlags))} shutdown";
 }
