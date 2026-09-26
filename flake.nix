@@ -41,6 +41,7 @@
       };
 
       devShells.${system}.default = pkgs.mkShell {
+        TYPST_FONT_PATHS="${pkgs.jetbrains-mono}/share/fonts/truetype";
         packages = [
           pkgs.bazel_prebuilt
           pkgs.fetchrec
@@ -48,6 +49,7 @@
           pkgs.git
           pkgs.helix
           pkgs.nixfmt
+          pkgs.typst
           pkgs.custom_rust.bin
         ];
       };
