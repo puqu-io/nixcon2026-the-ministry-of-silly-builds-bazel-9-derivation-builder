@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use anyhow::Error;
+use base64::Engine;
 use clap::Parser;
 use flate2::read::GzDecoder;
 use lazy_static::lazy_static;
@@ -74,37 +75,34 @@ pub fn get_executable_path() -> Option<PathBuf> {
 fn retrieve_extensions_loads<P: AsRef<Path>>(path: P) -> Vec<ExtensionLoad> {
   // CHRIST ALL MIGHTY
   // also I am fucking stupid, only one extension can be 'used' per invocation
-  let re =
-    regex::Regex::new(r#"(?<bind>\w+)\s*=\s*use_extension\(\s*"(?<from>[\w\d@/:.]+)",(?:\s*"(?<whatOne>[\w\d@/:.]+)",?\s*)(?:\s*"(?<whatTwo>[\w\d@/:.]+)",?\s*)?(?:\s*"(?<whatThree>[\w\d@/:.]+)",?\s*)?\)"#)
-      .unwrap();
+  let re = regex::Regex::new(r#"(?<bind>\w+)\s*=\s*use_extension\(\s*"(?<from>[\w\d@/:.]+)",(?:\s*"(?<whatOne>[\w\d@/:.]+)",?\s*)(?:\s*dev_dependency\s*=\s*(?<whatTwo>[\w\d@/:.]+),?\s*)?\)"#).unwrap();
   let contents =
     std::fs::read_to_string(path.as_ref()).expect("whoopsie, no ready");
 
   let extension_loads: Vec<ExtensionLoad> = re
     .captures_iter(&contents)
-    .map(|caps| {
+    .filter_map(|caps| {
       let bind = caps.name("bind").unwrap().as_str().to_string();
       let from = caps.name("from").unwrap().as_str().to_string();
       let whatOne = caps.name("whatOne");
-      let whatTwo = caps.name("whatTwo");
-      let whatThree = caps.name("whatThree");
+      let is_dev_dependency = caps.name("whatTwo");
+
+      if let Some(is_dev_dep) = is_dev_dependency {
+        if is_dev_dep.as_str() != "false" {
+          return None;
+        }
+      };
 
       let mut objects = Vec::new();
       if let Some(one) = whatOne {
         objects.push(one.as_str().to_string());
       };
-      if let Some(two) = whatTwo {
-        objects.push(two.as_str().to_string());
-      };
-      if let Some(three) = whatThree {
-        objects.push(three.as_str().to_string());
-      };
 
-      ExtensionLoad {
+      Some(ExtensionLoad {
         bind_to: bind,
         from: from,
         objects: objects,
-      }
+      })
     })
     .collect();
 
@@ -220,7 +218,7 @@ fn create_canonical_id_marker<P: AsRef<Path>>(
   // https://github.com/bazelbuild/bazel/blob/c9bf7292d82251ad9a61e1baf53050ccb1787a9c/tools/build_defs/repo/cache.bzl#L25
   // Canonical id marker, without it Bazel complains
   // In future, there will be urls, not single url
-  let urls = vec![request.url.clone()];
+  let urls = request.urls.clone();
   let cannonical_id_marker_name = calculate_cannonical_id_marker(&urls);
 
   let cannonical_id_marker_path =
@@ -238,10 +236,10 @@ fn bazel_repository_cache_download<P: AsRef<Path>>(
   rc_dir: P,
   request: &DownloadRequest,
 ) -> PathBuf {
-  let response = match ureq::get(&request.url).call() {
+  let response = match ureq::get(request.urls.iter().next().unwrap()).call() {
     Ok(rsp) => rsp,
     Err(e) => {
-      panic!("Failed to download {:#?}. Details: {:#?}", request.url, e)
+      panic!("Failed to download {:#?}. Details: {:#?}", request.urls, e)
     }
   };
 
@@ -480,66 +478,66 @@ fn evaluate_bzl_module<P: AsRef<Path>>(
   // TODO: Not sure if seen should be above or after
   // Hello, I will not try to load corresponding MODULE.bazel file
 
-  // if filepath_to_load_from
-  //   .file_name()
-  //   .map_or(true, |filename| filename != "MODULE.bazel")
-  // {
-  //   let corresponding_module_bazel = filepath_to_load_from
-  //     .to_string_lossy()
-  //     .to_string()
-  //     .starlark_module_path(starlark_modules_cache.as_ref())
-  //     .starlark_module_ruleset_path(starlark_modules_cache.as_ref())
-  //     .join("MODULE.bazel");
-  //   if corresponding_module_bazel.exists() {
-  //     if !initialized_module_bzls.contains(&corresponding_module_bazel) {
-  //       eprintln!(
-  //         "{}evaluate_bzl_module: {:#?} will subeval: {:#?}",
-  //         " ".repeat(depth),
-  //         filepath,
-  //         &corresponding_module_bazel,
-  //       );
+  if filepath_to_load_from
+    .file_name()
+    .map_or(true, |filename| filename != "MODULE.bazel")
+  {
+    let corresponding_module_bazel = filepath_to_load_from
+      .to_string_lossy()
+      .to_string()
+      .starlark_module_path(starlark_modules_cache.as_ref())
+      .starlark_module_ruleset_path(starlark_modules_cache.as_ref())
+      .join("MODULE.bazel");
+    if corresponding_module_bazel.exists() {
+      if !initialized_module_bzls.contains(&corresponding_module_bazel) {
+        eprintln!(
+          "{}evaluate_bzl_module: {:#?} will subeval: {:#?}",
+          " ".repeat(depth),
+          filepath,
+          &corresponding_module_bazel,
+        );
 
-  //       initialized_module_bzls.insert(corresponding_module_bazel.clone());
+        initialized_module_bzls.insert(corresponding_module_bazel.clone());
 
-  //       match evaluate_bzl_module(
-  //         corresponding_module_bazel.clone(),
-  //         None,
-  //         downloads_registry,
-  //         initialized_module_bzls,
-  //         depth + 1,
-  //         loaded_modules,
-  //         starlark_defs_dir.as_ref().to_path_buf(),
-  //         starlark_modules_cache.as_ref().to_path_buf(),
-  //       ) {
-  //         Err(err) => {
-  //           eprintln!("Failed to evaluate: {:#?}", &corresponding_module_bazel);
-  //           eprintln!("Details: {err:#?}");
-  //           panic!("unable to evaluate!");
-  //         }
-  //         Ok(o) => (), //eprintln!("What! {o:#?}"),
-  //       }
-  //       // Prevent cyclic loads
-  //       // seen_module_bzl_files.insert(corresponding_module_bazel.clone());
-  //     } else {
-  //       eprintln!(
-  //         "{}evaluate_bzl_module: {:#?} skipping subeval: {:#?}",
-  //         " ".repeat(depth),
-  //         filepath,
-  //         &corresponding_module_bazel,
-  //       );
+        match evaluate_bzl_module(
+          corresponding_module_bazel.clone(),
+          None,
+          downloads_registry,
+          initialized_module_bzls,
+          depth + 1,
+          loaded_modules,
+          starlark_defs_dir.as_ref().to_path_buf(),
+          starlark_modules_cache.as_ref().to_path_buf(),
+        ) {
+          Err(err) => {
+            eprintln!("Failed to evaluate: {:#?}", &corresponding_module_bazel);
+            eprintln!("Details: {err:#?}");
+            panic!("unable to evaluate!");
+          }
+          Ok(o) => (), //eprintln!("What! {o:#?}"),
+        }
+        // Prevent cyclic loads
+        // seen_module_bzl_files.insert(corresponding_module_bazel.clone());
+      } else {
+        eprintln!(
+          "{}evaluate_bzl_module: {:#?} skipping subeval: {:#?}",
+          " ".repeat(depth),
+          filepath,
+          &corresponding_module_bazel,
+        );
 
-  //       // eprintln!(
-  //       //   "Wanted to evaluate {:#?} but it was already evaluated.",
-  //       //   &corresponding_module_bazel
-  //       // );
-  //     }
-  //   } else {
-  //     eprintln!(
-  //       "Wanted to evaluate {:#?} but it was not found.",
-  //       &corresponding_module_bazel
-  //     )
-  //   }
-  // }
+        // eprintln!(
+        //   "Wanted to evaluate {:#?} but it was already evaluated.",
+        //   &corresponding_module_bazel
+        // );
+      }
+    } else {
+      eprintln!(
+        "Wanted to evaluate {:#?} but it was not found.",
+        &corresponding_module_bazel
+      )
+    }
+  }
 
   // Hello, I have now stopped trying to load corresponding MODULE.bazel file
 
@@ -578,13 +576,18 @@ fn evaluate_bzl_module<P: AsRef<Path>>(
     let full_module_id =
       if let Some(stripped) = load.module_id.strip_prefix("//") {
         // If loading relative path, swap it to full path, but register as shortened
-        filepath
+        let a = filepath
           .to_string_lossy()
           .to_string()
-          .starlark_module_path(starlark_modules_cache.as_ref())
-          .starlark_module_ruleset_path(starlark_modules_cache.as_ref())
-          .join(stripped.replace(":", "/"))
-          .bazel_label(starlark_modules_cache.as_ref())
+          .starlark_module_path(starlark_modules_cache.as_ref());
+        let b = a.starlark_module_ruleset_path(starlark_modules_cache.as_ref());
+        let c = if stripped.starts_with(":") {
+          b.join(stripped.replace(":", ""))
+        } else {
+          b.join(stripped.replace(":", "/"))
+        };
+        let d = c.bazel_label(starlark_modules_cache.as_ref());
+        d
       } else if let Some(stripped) = load.module_id.strip_prefix(":") {
         filepath
           .to_string_lossy()
@@ -755,7 +758,9 @@ where
           .as_ref()
           .replacen("@", "", 1)
           .replacen("//", "/", 1)
-          .replacen(":", "/", 1),
+          .replacen(":", "/", 1)
+          // if this results in double //
+          .replacen("//", "/", 1),
       )
       .to_path_buf()
   }
@@ -771,13 +776,13 @@ impl DownloadsLedger {
     filename: String,
     integrity: String,
     kind: String,
-    url: String,
+    urls: Vec<String>,
   ) -> () {
     self.0.borrow_mut().insert(DownloadRequest {
       filename: filename,
       integrity: Integrity::Sha256(integrity),
       kind: bzlmod_parser_poc::bazel_module_lockfile::RequestKind::Archive,
-      url: url,
+      urls: urls,
     });
   }
 }
@@ -788,7 +793,8 @@ fn starlark_report_download(builder: &mut GlobalsBuilder) {
     filename: String,
     integrity: String,
     kind: String,
-    url: String,
+    // :C
+    urls: String,
     eval: &mut Evaluator,
   ) -> anyhow::Result<NoneType> {
     let downloads_ledger = eval
@@ -797,7 +803,20 @@ fn starlark_report_download(builder: &mut GlobalsBuilder) {
       .downcast_ref::<DownloadsLedger>()
       .unwrap_or_else(|| panic!("Could not downcast to DownloadsLedger"));
 
-    downloads_ledger.add(filename, integrity, kind, url);
+    let integrity = if integrity.starts_with("sha256-") {
+      let int = integrity.strip_prefix("sha256-").unwrap();
+      let r = base64::prelude::BASE64_STANDARD
+        .decode(int)
+        .expect("fix me");
+      let hex_string = hex::encode(r);
+      hex_string.to_lowercase()
+    } else {
+      integrity.to_lowercase()
+    };
+
+    let urls: Vec<String> =
+      urls.split(" ").into_iter().map(|s| s.to_string()).collect();
+    downloads_ledger.add(filename, integrity, kind, urls);
 
     Ok(NoneType)
   }
@@ -917,7 +936,7 @@ fn main() {
         filename: filename.to_string_lossy().to_string(),
         integrity: source_json.integrity.clone(),
         kind: bzlmod_parser_poc::bazel_module_lockfile::RequestKind::Archive,
-        url: source_json.url.clone(),
+        urls: vec![source_json.url.clone()],
       };
 
       let _downloaded_archive_file =
@@ -934,11 +953,11 @@ fn main() {
             bzlmod_parser_poc::bazel_module_lockfile::RequestKind::Patchfile,
           // The download url for patches is always:
           // <original_url_without_filename> + "patches/" + <patchfilename>
-          url: format!(
+          urls: vec![format!(
             "{}patches/{}",
-            r.url.replacen(&r.filename, "", 1),
+            r.urls.iter().next().unwrap().replacen(&r.filename, "", 1),
             patchfile_name
-          ),
+          )],
         };
         // eprintln!("{patchfile_dr:#?}");
         let _ = bazel_repository_cache_download(&rc_dir, &patchfile_dr);
@@ -954,11 +973,11 @@ fn main() {
           kind: bzlmod_parser_poc::bazel_module_lockfile::RequestKind::Overlay,
           // The download url for patches is always:
           // <original_url_without_filename> + "patches/" + <patchfilename>
-          url: format!(
+          urls: vec![format!(
             "{}overlay/{}",
-            r.url.replacen(&r.filename, "", 1),
+            r.urls.iter().next().unwrap().replacen(&r.filename, "", 1),
             overlay_filename
-          ),
+          )],
         };
         // eprintln!("{patchfile_dr:#?}");
         let _ = bazel_repository_cache_download(&rc_dir, &overlay_dr);
@@ -968,7 +987,10 @@ fn main() {
       // TODO: Improve, this name might be changed via top-level MODULE.bazel
       // TODO: The registry might be different
       let repository_name = r
-        .url
+        .urls
+        .iter()
+        .next()
+        .unwrap()
         .replacen("https://bcr.bazel.build/modules/", "", 1)
         .replace("-", "_");
       let repository_name = repository_name
@@ -1085,7 +1107,7 @@ fn main() {
   // Serialize the lockfile
   let mut fetchesjsonl_lines = Vec::<String>::new();
   for request in &all_downloads {
-    let urls = vec![request.url.clone()];
+    let urls = request.urls.clone();
     let entry = FetchesJsonlEntry {
       canonical_id_marker: Some(calculate_cannonical_id_marker(&urls)),
       urls: urls,
