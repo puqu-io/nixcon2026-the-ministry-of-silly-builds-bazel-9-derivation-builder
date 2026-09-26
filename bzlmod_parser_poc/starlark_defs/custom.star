@@ -154,24 +154,46 @@ attr = struct(
 
 # This will require work
 def Label(input):
-    return str(input)
+    self = struct(
+        _inner = input,
+        repo_name = input,
+    )
+    return self
 
 # Components of repository_ctx
 def repository_ctx_download_and_extract(repository_name, *args, **kwargs):
-    url = kwargs.get("url", "no url found")
-    sha256 = kwargs.get("sha256", "no sha256 found")
+    urls = kwargs.get("urls", [kwargs.get("url", "no url found")])
+    sha256 = kwargs.get("sha256", kwargs.get("integrity", "no integrity found"))
     # print("repository_ctx.download_and_extract called with: url:{} sha256:{}".format(url, sha256))
     # TODO: download_and_extract might have urls and integrity and ...
     bazel_report_download(
-        url.rsplit("/", 1)[-1],
+        urls[0].rsplit("/", 1)[-1],
         sha256,
         "<kind-to-be-used>",
-        url,
+        " ".join(urls),
     )
     return
 
 def gen_repository_ctx_download_and_extract(repository_name, *args, **kwargs):
     return lambda *args, **kwargs: repository_ctx_download_and_extract(repository_name, *args, **kwargs)
+
+# Components of repository_ctx
+def repository_ctx_download(repository_name, *args, **kwargs):
+    urls = kwargs.get("urls", [kwargs.get("url", "no url found")])
+    
+    sha256 = kwargs.get("sha256", kwargs.get("integrity", "no integrity found"))
+    # print("repository_ctx.download_and_extract called with: url:{} sha256:{}".format(url, sha256))
+    # TODO: download_and_extract might have urls and integrity and ...
+    bazel_report_download(
+        urls[0].rsplit("/", 1)[-1],
+        sha256,
+        "<kind-to-be-used>",
+        " ".join(urls),
+    )
+    return
+
+def gen_repository_ctx_download(repository_name, *args, **kwargs):
+    return lambda *args, **kwargs: repository_ctx_download(repository_name, *args, **kwargs)
 
 def repository_ctx_file(repository_name, *args, **kwargs):
     path = args[0]
@@ -277,7 +299,7 @@ def execute_module_extension_impl(
             struct(
                 is_root = False,
                 name = "rules_rust",
-                tags = struct(**{}),
+                tags = struct(**tags_as_dict),
                 version = "fake_rules_rust_version",
             )
         ]
@@ -340,6 +362,7 @@ def invoke_repository_rule_impl(impl, attrs, *args, **kwargs):
     repository_ctx = struct(
         attr = struct(**attrs_with_defaults),
         attrs = attrs,
+        download = gen_repository_ctx_download(kwargs.get("name")),
         download_and_extract = gen_repository_ctx_download_and_extract(kwargs.get("name")),
         # TODO: implement execute
         execute = lambda *args, **kwargs: struct(
@@ -359,10 +382,11 @@ def invoke_repository_rule_impl(impl, attrs, *args, **kwargs):
             name = "Linux",
             arch = "amd64",
         ),
-        path = lambda p: struct(
-            _inner = "/home/agondek/projects/github.com/AleksanderGondek/bzlmod_parser_poc/starlark_modules_cache/" + p,
-            exists = True,            
-        ),
+        path = lambda p: "/home/agondek/projects/github.com/puqu-io/nixcon2026-the-ministry-of-silly-builds-bazel-9-derivation-builder/tmp_out/starlark_modules_cache/" + p,
+        # path = lambda p: struct(
+        #     # _inner = "/home/agondek/projects/github.com/AleksanderGondek/bzlmod_parser_poc/starlark_modules_cache/" + p,
+        #     exists = True,
+        # ),
         read = lambda *args: "#<REPOSITORY_CTX_READ_OUTPUT_CONTENTS>",
         template = gen_repository_ctx_template(kwargs.get("name")),
         # TODO: implement which

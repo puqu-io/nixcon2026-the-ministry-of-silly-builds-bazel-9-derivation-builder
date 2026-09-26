@@ -78,7 +78,7 @@ pub struct DownloadRequest {
   pub filename: String,
   pub integrity: Integrity,
   pub kind: RequestKind,
-  pub url: String,
+  pub urls: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -150,7 +150,7 @@ impl Lockfile {
             true => RequestKind::Source,
             _ => RequestKind::Module,
           },
-          url: url.clone(),
+          urls: vec![url.clone()],
         }
       })
       .collect();
@@ -162,8 +162,10 @@ impl Lockfile {
           .to_string(),
       ),
       kind: RequestKind::Archive,
-      url: "https://github.com/bats-core/bats-core/archive/v1.10.0.tar.gz"
-        .to_string(),
+      urls: vec![
+        "https://github.com/bats-core/bats-core/archive/v1.10.0.tar.gz"
+          .to_string(),
+      ],
     });
     return r;
     //   let actually_used = self.registry_file_hashes.iter().filter(|(url, _)| {

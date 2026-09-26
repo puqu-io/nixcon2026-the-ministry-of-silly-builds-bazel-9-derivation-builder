@@ -54,6 +54,13 @@ def single_version_override(*args, **kwargs):
     pass
 
 def use_extension(*args, **kwargs):
+    if kwargs.get("dev_dependency", False):
+        return struct(
+            toolchain=lambda **kwargs: struct(),
+            from_file=lambda **kwargs: struct(),
+            host=lambda **kwargs: struct(),
+        )
+
     eb = FEBS.get("{}.{}".format(args[0],args[1]))
     if str(type(eb)) == "function":
         # For non tag_classes and simple extensions
