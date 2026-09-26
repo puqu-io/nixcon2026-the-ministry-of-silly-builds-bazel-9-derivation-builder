@@ -27,6 +27,10 @@
 #show link: underline
 #set align(horizon)
 
+#align(center)[
+  #image("link.png", height: 80%)
+]
+
 = Introduction
 
 #align(center)[
@@ -112,6 +116,7 @@ _buildBazelPackage_ / _bazelPackage_:
 == Questions?
 
 #align(center)[
+  #image("link.png", height: 50%)
   #text(size: 1em)[
     Questions?
   ]
