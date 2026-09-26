@@ -3,7 +3,7 @@
   bzlmod_parser_poc,
 }:
 
-{ ... }:
+_:
 
 {
   script = ''

@@ -40,13 +40,12 @@ stdenv.mkDerivation {
 
     ${ctx.run {
       cmd = "vendor";
-      flags = (
-        flags ++ (map (n: "--repo=@@${n}") vendorRepos) ++ [ "--vendor_dir=vendor" ]
-      );
+      flags =
+        flags ++ (map (n: "--repo=@@${n}") vendorRepos) ++ [ "--vendor_dir=vendor" ];
       inherit mounts;
     }}
 
-    ${ctx.shutdown []}
+    ${ctx.shutdown [ ]}
 
     runHook postBuild
   '';

@@ -31,7 +31,9 @@
           (import ./nix/overlay.nix)
         ];
 
-        rust = final: prev: { custom_rust = final.callPackage ./nix/dev/rust.nix { }; };
+        rust = final: _prev: {
+          custom_rust = final.callPackage ./nix/dev/rust.nix { };
+        };
       };
 
       packages.${system} = {

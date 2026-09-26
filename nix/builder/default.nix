@@ -123,7 +123,7 @@ stdenv.mkDerivation (
         mounts = buildMounts;
       }}
 
-      ${ctx.shutdown []}
+      ${ctx.shutdown [ ]}
 
       runHook postBuild
     '';

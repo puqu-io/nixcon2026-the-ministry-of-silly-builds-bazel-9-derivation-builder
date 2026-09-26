@@ -11,7 +11,7 @@ let
   bazelrisk-src = builtins.path {
     path = ./.;
     name = "bzlmod_parser_poc_src";
-    filter = path: type: builtins.match ".*starlark_defs.*" path == null;
+    filter = path: _type: builtins.match ".*starlark_defs.*" path == null;
   };
   version = (builtins.fromTOML (builtins.readFile cargo-toml)).package.version;
 in
