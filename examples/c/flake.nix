@@ -20,8 +20,8 @@
         overlays = [ bazel-builder.overlays.default ];
       };
 
-      example = pkgs.mkBazelPackage {
-        pname = "example";
+      example_c = pkgs.mkBazelPackage {
+        pname = "example_c";
         version = "1.0.0";
         src = ./.;
         #lockFile = ./fetches.jsonl;
@@ -35,8 +35,8 @@
     in
     {
       packages.${system} = {
-        default = example;
-        inherit (example) lock;
+        default = example_c;
+        inherit (example_c) lock repoCache;
       };
 
       devShells.${system}.default = pkgs.mkShell {
