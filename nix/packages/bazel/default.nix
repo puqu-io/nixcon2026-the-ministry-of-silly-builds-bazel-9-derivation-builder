@@ -1,8 +1,6 @@
 {
-  lib,
   stdenv,
   fetchurl,
-  makeWrapper,
   buildFHSEnv,
   zlib,
   jdk,
