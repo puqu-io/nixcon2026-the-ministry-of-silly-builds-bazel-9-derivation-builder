@@ -29,19 +29,19 @@ stdenv.mkDerivation {
   buildPhase = ''
     runHook preBuild
 
-    lockOut="$TMPDIR/fetches.raw.jsonl"
+    lockOut="fetches.raw.jsonl"
     touch "$lockOut"
 
     ${updater.script}
 
-    sort -u "$lockOut" > "$TMPDIR/fetches.jsonl"
+    sort -u "$lockOut" > fetches.jsonl
 
     runHook postBuild
   '';
 
   installPhase = ''
     runHook preInstall
-    cp "$TMPDIR/fetches.jsonl" "$out"
+    cp fetches.jsonl "$out"
     runHook postInstall
   '';
 }

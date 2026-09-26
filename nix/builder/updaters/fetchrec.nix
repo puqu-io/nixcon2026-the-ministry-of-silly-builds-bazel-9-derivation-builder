@@ -10,7 +10,9 @@
 
 let
   # watch a fetch happen and write it down
-  agentFlags = ''--host_jvm_args=-javaagent:${fetchrec}/fetchrec.jar="$lockOut"'';
+  startupFlags = [
+    ''--host_jvm_args=-javaagent:${fetchrec}/fetchrec.jar="$lockOut"''
+  ];
 in
 {
   nativeBuildInputs = [
@@ -24,11 +26,15 @@ in
 
     ${ctx.run {
       cmd = "build";
-      inherit flags mounts targets;
-      extraStartup = agentFlags;
+      inherit
+        flags
+        mounts
+        targets
+        startupFlags
+        ;
     }}
 
     # stop the server so the agent flushes the log before it is read
-    ${ctx.shutdown agentFlags}
+    ${ctx.shutdown startupFlags}
   '';
 }

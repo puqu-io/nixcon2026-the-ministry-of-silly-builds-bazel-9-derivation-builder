@@ -42,7 +42,7 @@ let
   };
 
   # the updater may only use the vendor directory once it has a real hash
-  hasVendorRepos = vendorReposHash != "";
+  hasVendorRepos = vendorReposHash != "" || vendorRepos != [ ];
 
   lockFOD = callPackage ./lock-fod.nix { } {
     inherit
@@ -120,11 +120,10 @@ stdenv.mkDerivation (
       ${ctx.run {
         cmd = "build";
         inherit targets;
-        flags = [ "--repository_disable_download" ];
         mounts = buildMounts;
       }}
 
-      ${ctx.shutdown ""}
+      ${ctx.shutdown []}
 
       runHook postBuild
     '';

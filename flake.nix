@@ -41,7 +41,7 @@
       };
 
       devShells.${system}.default = pkgs.mkShell {
-        TYPST_FONT_PATHS="${pkgs.jetbrains-mono}/share/fonts/truetype";
+        TYPST_FONT_PATHS = "${pkgs.jetbrains-mono}/share/fonts/truetype";
         packages = [
           pkgs.bazel_prebuilt
           pkgs.fetchrec
