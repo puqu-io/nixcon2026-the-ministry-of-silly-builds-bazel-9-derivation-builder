@@ -215,6 +215,12 @@ fn create_canonical_id_marker<P: AsRef<Path>>(
   dest_dir: P,
   request: &DownloadRequest,
 ) -> PathBuf {
+  // Demo prints
+  println!(
+    "[bzlmod_parser_poc] Creating cannonical id marker for {:#?}",
+    request.urls,
+  );
+
   // https://github.com/bazelbuild/bazel/blob/c9bf7292d82251ad9a61e1baf53050ccb1787a9c/tools/build_defs/repo/cache.bzl#L25
   // Canonical id marker, without it Bazel complains
   // In future, there will be urls, not single url
@@ -236,6 +242,12 @@ fn bazel_repository_cache_download<P: AsRef<Path>>(
   rc_dir: P,
   request: &DownloadRequest,
 ) -> PathBuf {
+  // Demo prints
+  println!(
+    "[bzlmod_parser_poc] Downloading {:#?}",
+    request.urls.iter().next().unwrap(),
+  );
+
   let response = match ureq::get(request.urls.iter().next().unwrap()).call() {
     Ok(rsp) => rsp,
     Err(e) => {
@@ -460,8 +472,8 @@ fn evaluate_bzl_module<P: AsRef<Path>>(
   };
 
   // eprintln!("===");
-  eprintln!(
-    "{}evaluate_bzl_module: {:#?} start",
+  println!(
+    "[bzlmod_parser_poc] {}evaluate_bzl_module: {:#?} start",
     " ".repeat(depth),
     filepath
   );
@@ -490,8 +502,8 @@ fn evaluate_bzl_module<P: AsRef<Path>>(
       .join("MODULE.bazel");
     if corresponding_module_bazel.exists() {
       if !initialized_module_bzls.contains(&corresponding_module_bazel) {
-        eprintln!(
-          "{}evaluate_bzl_module: {:#?} will subeval: {:#?}",
+        println!(
+          "[bzlmod_parser_poc] {}evaluate_bzl_module: {:#?} will subeval: {:#?}",
           " ".repeat(depth),
           filepath,
           &corresponding_module_bazel,
@@ -519,8 +531,8 @@ fn evaluate_bzl_module<P: AsRef<Path>>(
         // Prevent cyclic loads
         // seen_module_bzl_files.insert(corresponding_module_bazel.clone());
       } else {
-        eprintln!(
-          "{}evaluate_bzl_module: {:#?} skipping subeval: {:#?}",
+        println!(
+          "[bzlmod_parser_poc] {}evaluate_bzl_module: {:#?} skipping subeval: {:#?}",
           " ".repeat(depth),
           filepath,
           &corresponding_module_bazel,
@@ -548,8 +560,8 @@ fn evaluate_bzl_module<P: AsRef<Path>>(
     extension_loads = Vec::default();
   }
 
-  eprintln!(
-    "{}evaluate_bzl_module: {:#?} parse. Extension loads: {:#?}",
+  println!(
+    "[bzlmod_parser_poc] {}evaluate_bzl_module: {:#?} parse. Extension loads: {:#?}",
     " ".repeat(depth),
     filepath,
     &extension_loads,
@@ -651,8 +663,8 @@ fn evaluate_bzl_module<P: AsRef<Path>>(
 
   let downloads_ledger = DownloadsLedger::default();
 
-  eprintln!(
-    "{}evaluate_bzl_module: {:#?} eval",
+  println!(
+    "[bzlmod_parser_poc] {}evaluate_bzl_module: {:#?} eval",
     " ".repeat(depth),
     filepath
   );
@@ -892,6 +904,12 @@ fn main() {
   let lf = std::fs::File::open(&args.bzl_module_lockfile).expect("bbb");
   let lb = std::io::BufReader::new(lf);
 
+  // Demo prints
+  println!(
+    "[bzlmod_parser_poc] Reading {:#?}",
+    &args.bzl_module_lockfile
+  );
+
   let Ok(lockfile) =
     serde_json::from_reader::<std::io::BufReader<std::fs::File>, Lockfile>(lb)
   else {
@@ -1014,6 +1032,8 @@ fn main() {
     for (repo_name, specs) in &starlark_modules {
       let repo_dir = starlark_modules_root.join(repo_name);
 
+      println!("[bzlmod_parser_poc] Creating {:#?}", &repo_dir);
+
       let Ok(_) = std::fs::create_dir_all(&repo_dir) else {
         panic!("Failed to create dir: {repo_dir:#?}");
       };
@@ -1092,12 +1112,16 @@ fn main() {
     &args.starlark_defs,
     &starlark_modules_root,
   ) {
-    Ok(_ret) => eprintln!("Evaluated {:#?}", &modulefile_path),
+    Ok(_ret) => {
+      println!("[bzlmod_parser_poc] Evaluated {:#?}", &modulefile_path)
+    }
     Err(e) => eprintln!("Error. {e:#?}"),
   }
 
-  println!("=== Registered Download invocations ===");
-  println!("{downloads_registry:#?}");
+  println!(
+    "[bzlmod_parser_poc] Found the following download request from use_extensions:\n {:#?}",
+    &downloads_registry
+  );
 
   for request in &downloads_registry {
     bazel_repository_cache_download(&rc_dir, request);
@@ -1105,6 +1129,9 @@ fn main() {
   }
 
   // Serialize the lockfile
+
+  println!("[bzlmod_parser_poc] Creating lockfile: {:#?}", &args.output);
+
   let mut fetchesjsonl_lines = Vec::<String>::new();
   for request in &all_downloads {
     let urls = request.urls.clone();
