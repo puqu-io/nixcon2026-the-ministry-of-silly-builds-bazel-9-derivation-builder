@@ -7,7 +7,7 @@
   src,
   vendorRepos,
   vendorReposHash,
-  flags,
+  flags ? [ ],
   mounts,
   nativeBuildInputs ? [ ],
 }:

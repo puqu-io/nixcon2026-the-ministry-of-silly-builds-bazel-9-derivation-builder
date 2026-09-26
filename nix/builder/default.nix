@@ -4,7 +4,6 @@
   callPackage,
   bazel,
   jdk,
-  bazelUpdaters,
 }:
 
 {
@@ -12,19 +11,17 @@
   version,
   src,
 
-  lockFile,
-  lockPath ? "fetches.jsonl", # where the updater writes the lock
   updater,
+  lockFile ? null,
+  lockHash ? "",
 
   targets ? [ "//..." ],
-  installPhase,
 
   bazelFlags ? [ ], # extra flags provided by user
   javaRuntime ? "remotejdk_25",
 
   vendorRepos ? [ ],
   vendorReposHash ? "",
-  vendorReposUseRepoCache ? true,
 
   nativeBuildInputs ? [ ],
   passthru ? { },
@@ -44,15 +41,34 @@ let
       ;
   };
 
+  # the updater may only use the vendor directory once it has a real hash
+  hasVendorRepos = vendorReposHash != "";
+
+  lockFOD = callPackage ./lock-fod.nix { } {
+    inherit
+      pname
+      src
+      lockHash
+      nativeBuildInputs
+      ;
+    updater = updater {
+      inherit ctx caches targets;
+      flags = [
+        "--nobuild"
+        "--repository_cache="
+      ];
+      mounts = lib.optional hasVendorRepos (caches.vendorMount vendorDir);
+    };
+  };
+
+  effectiveLock = if lockFile != null then lockFile else lockFOD;
   repoCache = caches.mkRepoCache {
-    inherit lockFile;
+    lockFile = effectiveLock;
     name = "${pname}-repo-cache";
   };
 
-  hasVendorRepos = vendorRepos != [ ];
-  # the updater may only use the vendor directory once it has a real hash
-  updateHasVendorRepos = hasVendorRepos && vendorReposHash != "";
-
+  #TODO we cannot use lockfile hash because we would end up in a fod loop
+  hasLockFile = lockFile != null;
   vendorDir = callPackage ./vendor.nix {
     inherit
       ctx
@@ -63,8 +79,7 @@ let
       vendorReposHash
       nativeBuildInputs
       ;
-    flags = [ "--lockfile_mode=error" ];
-    mounts = lib.optional vendorReposUseRepoCache (caches.repoCacheMount repoCache);
+    mounts = lib.optional hasLockFile (caches.repoCacheMount repoCache);
   };
 
   buildMounts = [
@@ -72,13 +87,11 @@ let
   ]
   ++ lib.optional hasVendorRepos (caches.vendorMount vendorDir);
 
-  updateMounts = lib.optional updateHasVendorRepos (caches.vendorMount vendorDir);
-
-  # builder-only arguments, everything else goe's to mkDerivation
+  # builder-only arguments, everything else goes to mkDerivation
   builderArgs = [
     "lockFile"
-    "lockPath"
     "updater"
+    "lockHash"
     "targets"
     "bazelFlags"
     "javaRuntime"
@@ -107,10 +120,7 @@ stdenv.mkDerivation (
       ${ctx.run {
         cmd = "build";
         inherit targets;
-        flags = [
-          "--lockfile_mode=error"
-          "--repository_disable_download"
-        ];
+        flags = [ "--repository_disable_download" ];
         mounts = buildMounts;
       }}
 
@@ -119,28 +129,13 @@ stdenv.mkDerivation (
       runHook postBuild
     '';
 
-    inherit installPhase;
+    dontConfigure = true;
+    dontFixup = true;
 
     passthru = passthru // {
       inherit repoCache;
-
       vendor = vendorDir;
-      update = updater {
-        inherit
-          ctx
-          caches
-          pname
-          targets
-          lockPath
-          ;
-        flags = [
-          "--nobuild"
-          "--repository_cache="
-          "--lockfile_mode=update"
-          "--experimental_convenience_symlinks=ignore"
-        ];
-        mounts = updateMounts;
-      };
+      lock = lockFOD;
     };
   }
 )

@@ -1,26 +1,19 @@
 {
   lib,
-  writeShellApplication,
   bzlmod_parser_poc,
 }:
 
+{ ... }:
+
 {
-  pname,
-  lockPath,
-  ...
-}@args:
-writeShellApplication {
-  name = "update-${pname}-lock";
-  text = ''
-    set -euo pipefail
+  script = ''
+    mkdir -p "$TMPDIR/bzlmod-parser"
 
-    #temp="$(mktemp -d)"
-
-    ${bzlmod_parser_poc}/bin/bzlmod_parser_poc\
-      --bzl-module-file "$(pwd)/MODULE.bazel"\
-      --bzl-module-lockfile "$(pwd)/MODULE.bazel.lock"\
-      --starlark-defs "${bzlmod_parser_poc.starlark_defs}"\
-      --tmp-dir "$(pwd)/tmp_out"\
-      --output "$(pwd)/${lockPath}"
+    ${lib.getExe' bzlmod_parser_poc "bzlmod_parser_poc"} \
+      --bzl-module-file "$PWD/MODULE.bazel" \
+      --bzl-module-lockfile "$PWD/MODULE.bazel.lock" \
+      --starlark-defs "${bzlmod_parser_poc.starlark_defs}" \
+      --tmp-dir "$TMPDIR/bzlmod-parser" \
+      --output "$lockOut"
   '';
 }

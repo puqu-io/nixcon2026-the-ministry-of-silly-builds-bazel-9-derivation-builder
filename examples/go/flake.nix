@@ -24,7 +24,8 @@
         pname = "example";
         version = "1.0.0";
         src = ./.;
-        lockFile = ./fetches.jsonl;
+        #lockFile = ./fetches.jsonl;
+        lockHash = "sha256-WPiErRCxotKX9hul9mkzC6HieuozbKezkSAeF9ZrS1Y=";
         updater = pkgs.bazelUpdaters.fetchrec;
         targets = [ "//:hello" ];
         installPhase = ''
@@ -41,15 +42,13 @@
           "gazelle++go_deps+com_github_google_uuid"
           "gazelle++go_deps+com_github_bmatcuk_doublestar_v4"
         ];
-        vendorReposHash = "";
+        vendorReposHash = "sha256-n298Vp++Tf9gAdJ1tLQXwPWe3xbAyfLEBLYCNeHNkF0=";
       };
     in
     {
-      packages.${system}.default = example;
-
-      apps.${system}.update = {
-        type = "app";
-        program = pkgs.lib.getExe example.update;
+      packages.${system} = {
+        default = example;
+        inherit (example) lock vendor;
       };
 
       devShells.${system}.default = pkgs.mkShell {
