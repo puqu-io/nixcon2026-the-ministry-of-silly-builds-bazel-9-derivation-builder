@@ -1,7 +1,7 @@
 load("@rules_java//java:java_binary.bzl", "java_binary")
 
 java_binary(
-    name = "hello_world",
+    name = "hello",
     srcs = ["com/nixcon/HelloWorld.java"],
     main_class = "com.nixcon.HelloWorld",
 )

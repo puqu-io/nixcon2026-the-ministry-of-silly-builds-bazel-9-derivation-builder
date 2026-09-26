@@ -1,34 +1,24 @@
-{ #TODO: group flags
+{
   lib,
   stdenv,
+  ctx,
+  caches,
   pname,
   src,
-  bazel,
-  jdk,
-  bazelEnv,
-  cacheLib,
-  startupFlags,
-  commonFlags,
-  buildFlags,
-  repoCache,
   vendorRepos,
   vendorReposHash,
-  useRepoCache,
+  flags,
+  mounts,
   nativeBuildInputs ? [ ],
 }:
 
-let
-  vendorCacheFlags = cacheLib.cacheFlags {
-    repoCache = useRepoCache;
-  };
-in
 stdenv.mkDerivation {
   name = "${pname}-vendor";
   inherit src;
 
   nativeBuildInputs = nativeBuildInputs ++ [
-    bazel
-    jdk
+    ctx.bazel
+    ctx.jdk
   ];
 
   outputHashMode = "recursive";
@@ -43,21 +33,20 @@ stdenv.mkDerivation {
   buildPhase = ''
     runHook preBuild
 
-    ${bazelEnv}
+    ${ctx.env}
+    ${caches.setup mounts}
 
-    ${lib.optionalString useRepoCache (cacheLib.repoCacheSetupHook repoCache)}
+    mkdir -p "vendor"
 
-    vendorDir="$TMPDIR/vendor"
-    mkdir -p "$vendorDir"
+    ${ctx.run {
+      cmd = "vendor";
+      flags = (
+        flags ++ (map (n: "--repo=@@${n}") vendorRepos) ++ [ "--vendor_dir=vendor" ]
+      );
+      inherit mounts;
+    }}
 
-    bazel \
-      ${startupFlags} \
-      vendor ${lib.escapeShellArgs (map (n: "--repo=@@${n}") vendorRepos)} \
-      --vendor_dir="$vendorDir" \
-      ${lib.escapeShellArgs (buildFlags ++ commonFlags)} \
-      ${vendorCacheFlags}
-
-    bazel ${startupFlags} shutdown
+    ${ctx.shutdown ""}
 
     runHook postBuild
   '';
@@ -67,7 +56,7 @@ stdenv.mkDerivation {
 
     mkdir -p "$out"
     for name in ${lib.escapeShellArgs vendorRepos}; do
-      cp -a "$vendorDir/$name" "$out/$name"
+      cp -a "vendor/$name" "$out/$name"
     done
     chmod -R u+w "$out"
 

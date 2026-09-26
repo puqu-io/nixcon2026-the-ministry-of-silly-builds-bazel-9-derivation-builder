@@ -1,12 +1,12 @@
 {
   lib,
-  stdenv,
   writeShellApplication,
   bzlmod_parser_poc,
 }:
 
 {
   pname,
+  lockPath,
   ...
 }@args:
 writeShellApplication {
@@ -21,6 +21,6 @@ writeShellApplication {
       --bzl-module-lockfile "$(pwd)/MODULE.bazel.lock"\
       --starlark-defs "$(pwd)/bzlmod_parser_poc/starlark_defs"\
       --tmp-dir "$(pwd)/tmp_out"\
-      --output "$(pwd)/fetches.jsonl"
+      --output "$(pwd)/${lockPath}"
   '';
 }
