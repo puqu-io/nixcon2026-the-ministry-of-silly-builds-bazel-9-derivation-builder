@@ -19,7 +19,7 @@ writeShellApplication {
     ${bzlmod_parser_poc}/bin/bzlmod_parser_poc\
       --bzl-module-file "$(pwd)/MODULE.bazel"\
       --bzl-module-lockfile "$(pwd)/MODULE.bazel.lock"\
-      --starlark-defs "$(pwd)/bzlmod_parser_poc/starlark_defs"\
+      --starlark-defs "${bzlmod_parser_poc.starlark_defs}"\
       --tmp-dir "$(pwd)/tmp_out"\
       --output "$(pwd)/${lockPath}"
   '';
